@@ -1,0 +1,199 @@
+/* =====================================================
+   LOGIN PAGE STYLES
+   ===================================================== */
+
+.auth-hero {
+  min-height: auto;
+  padding-top: calc(64px + var(--space-xl));
+  padding-bottom: var(--space-xl);
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+@media (min-width: 900px) {
+  .auth-hero {
+    min-height: 100vh;
+    padding-top: calc(64px + var(--space-2xl));
+    padding-bottom: var(--space-2xl);
+  }
+}
+
+.login-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  gap: var(--space-2xl);
+  align-items: center;
+  padding: 0 var(--space-lg);
+}
+
+@media (min-width: 900px) {
+  .login-grid {
+    grid-template-columns: 1.2fr 1fr;
+    gap: 8vw;
+  }
+}
+
+/* Animación lateral */
+.login-graphic {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .login-graphic {
+    margin-bottom: 0;
+    text-align: left;
+  }
+}
+
+
+
+.login-text-content {
+  position: relative;
+  z-index: 2;
+}
+
+.login-text-content h1 {
+  font-size: clamp(1.75rem, 5vw, 4.5rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ffffff;
+  margin-bottom: var(--space-md);
+  letter-spacing: -0.02em;
+}
+
+.login-text-content p {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+@media (min-width: 900px) {
+  .login-text-content h1 {
+    font-size: clamp(2rem, 5vw, 4.5rem);
+  }
+  .login-text-content p {
+    font-size: var(--font-size-lg);
+  }
+}
+
+/* Formulario a la derecha */
+.login-form-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+}
+
+@media (min-width: 900px) {
+  .login-form-wrapper {
+    justify-content: flex-end;
+  }
+}
+
+.glass-card {
+  background: rgba(17, 19, 45, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  color: #ffffff;
+}
+
+@media (min-width: 900px) {
+  .glass-card {
+    padding: var(--space-2xl);
+  }
+}
+
+.glass-card h2 {
+  font-size: clamp(1.1rem, 3vw, 1.25rem);
+  font-weight: 700;
+  margin-bottom: var(--space-lg);
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 900px) {
+  .glass-card h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--space-xl);
+  }
+}
+
+.glass-card .form-group {
+  margin-bottom: var(--space-md);
+  text-align: left;
+}
+
+@media (min-width: 900px) {
+  .glass-card .form-group {
+    margin-bottom: var(--space-lg);
+  }
+}
+
+.glass-card label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-sm);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.glass-card input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  border-radius: 40px !important;
+  padding: 12px 20px !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+@media (min-width: 900px) {
+  .glass-card input {
+    padding: 14px 24px !important;
+  }
+}
+
+.glass-card input:focus {
+  border-color: var(--color-brand) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 0 4px rgba(236, 66, 55, 0.1);
+}
+
+.glass-card button {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+@media (min-width: 900px) {
+  .glass-card button {
+    margin-top: var(--space-lg);
+  }
+}
+
+
+/* Footer específico para Login Page */
+body.page-login .site-footer {
+  background: #040621 !important;
+}

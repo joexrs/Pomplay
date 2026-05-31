@@ -1,0 +1,244 @@
+/* ============================================
+   PICKERS — Fecha y Hora
+   Dark admin · Accent #ff4d56
+   ============================================ */
+
+:root {
+    --pk-bg: #1e2f4d;
+    --pk-bg-hover: #253a59;
+    --pk-border: rgba(255, 255, 255, 0.07);
+    --pk-border-focus: #ff4d56;
+    --pk-text: #e8e8f0;
+    --pk-muted: rgba(168, 168, 200, 0.45);
+    --pk-accent: #ff4d56;
+    --pk-accent-glow: rgba(255, 77, 86, 0.15);
+    --pk-accent-dim: rgba(255, 77, 86, 0.08);
+    --pk-label: rgba(168, 168, 200, 0.65);
+    --pk-radius: 12px;
+    --pk-ease: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Label ───────────────────────────────── */
+.adm-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pk-label);
+    margin-bottom: 10px;
+}
+
+/* ── Input base (date & time) ────────────── */
+input[type="date"].adm-input,
+input[type="time"].adm-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--pk-bg);
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius);
+    color: var(--pk-text);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 14px 18px;
+    outline: none;
+    cursor: pointer;
+    /* quita el ícono nativo en webkit */
+    -webkit-appearance: none;
+    appearance: none;
+    transition:
+        border-color var(--pk-ease),
+        background var(--pk-ease),
+        box-shadow var(--pk-ease);
+}
+
+input[type="date"].adm-input:hover,
+input[type="time"].adm-input:hover {
+    background: var(--pk-bg-hover);
+    border-color: rgba(255, 255, 255, 0.13);
+}
+
+input[type="date"].adm-input:focus,
+input[type="time"].adm-input:focus {
+    background: var(--pk-bg-hover);
+    border-color: var(--pk-border-focus);
+    box-shadow: 0 0 0 3px var(--pk-accent-glow);
+}
+
+/* texto del placeholder / partes vacías */
+input[type="date"].adm-input::-webkit-datetime-edit,
+input[type="time"].adm-input::-webkit-datetime-edit {
+    color: var(--pk-text);
+}
+
+input[type="date"].adm-input::-webkit-datetime-edit-fields-wrapper,
+input[type="time"].adm-input::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+}
+
+/* partes individuales (día, mes, año, horas, minutos…) */
+input[type="date"].adm-input::-webkit-datetime-edit-day-field,
+input[type="date"].adm-input::-webkit-datetime-edit-month-field,
+input[type="date"].adm-input::-webkit-datetime-edit-year-field,
+input[type="time"].adm-input::-webkit-datetime-edit-hour-field,
+input[type="time"].adm-input::-webkit-datetime-edit-minute-field,
+input[type="time"].adm-input::-webkit-datetime-edit-ampm-field {
+    color: var(--pk-text);
+    border-radius: 4px;
+    padding: 1px 3px;
+    transition: background var(--pk-ease), color var(--pk-ease);
+}
+
+/* parte activa/seleccionada resaltada en teal */
+input[type="date"].adm-input::-webkit-datetime-edit-day-field:focus,
+input[type="date"].adm-input::-webkit-datetime-edit-month-field:focus,
+input[type="date"].adm-input::-webkit-datetime-edit-year-field:focus,
+input[type="time"].adm-input::-webkit-datetime-edit-hour-field:focus,
+input[type="time"].adm-input::-webkit-datetime-edit-minute-field:focus,
+input[type="time"].adm-input::-webkit-datetime-edit-ampm-field:focus {
+    background: var(--pk-accent);
+    color: #0a0a12;
+    outline: none;
+}
+
+/* separadores ( / y : ) */
+input[type="date"].adm-input::-webkit-datetime-edit-text,
+input[type="time"].adm-input::-webkit-datetime-edit-text {
+    color: var(--pk-muted);
+    padding: 0 2px;
+}
+
+/* ícono de calendario / reloj nativo */
+input[type="date"].adm-input::-webkit-calendar-picker-indicator,
+input[type="time"].adm-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.4) sepia(1) saturate(3) hue-rotate(110deg);
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px;
+    transition: opacity var(--pk-ease);
+}
+
+input[type="date"].adm-input:hover::-webkit-calendar-picker-indicator,
+input[type="time"].adm-input:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+}
+
+/* ── Flatpickr override (si usas la librería) ── */
+.flatpickr-calendar {
+    background: var(--pk-bg) !important;
+    border: 1px solid var(--pk-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6) !important;
+    font-family: inherit !important;
+    overflow: hidden !important;
+}
+
+.flatpickr-months {
+    padding: 14px 16px !important;
+    border-bottom: 1px solid var(--pk-border) !important;
+}
+
+.flatpickr-month,
+.flatpickr-current-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    color: var(--pk-text) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+}
+
+.flatpickr-prev-month:hover svg,
+.flatpickr-next-month:hover svg {
+    fill: var(--pk-accent) !important;
+}
+
+.flatpickr-prev-month svg,
+.flatpickr-next-month svg {
+    fill: var(--pk-muted) !important;
+    transition: fill var(--pk-ease) !important;
+}
+
+.flatpickr-weekdays,
+span.flatpickr-weekday {
+    background: var(--pk-bg) !important;
+    color: var(--pk-muted) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+}
+
+.flatpickr-days,
+.dayContainer {
+    background: var(--pk-bg) !important;
+}
+
+.flatpickr-day {
+    color: rgba(168, 168, 200, 0.65) !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    border-color: transparent !important;
+    transition: background var(--pk-ease), color var(--pk-ease) !important;
+}
+
+.flatpickr-day:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--pk-text) !important;
+}
+
+.flatpickr-day.today {
+    background: transparent !important;
+    border: 1px solid var(--pk-accent) !important;
+    color: var(--pk-accent) !important;
+    font-weight: 700 !important;
+}
+
+.flatpickr-day.today:hover {
+    background: var(--pk-accent-dim) !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    background: var(--pk-accent) !important;
+    border-color: var(--pk-accent) !important;
+    color: #0a0a12 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 14px rgba(61, 240, 194, 0.25) !important;
+}
+
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+    color: rgba(168, 168, 200, 0.18) !important;
+}
+
+.flatpickr-day.disabled {
+    color: rgba(168, 168, 200, 0.12) !important;
+    cursor: not-allowed !important;
+}
+
+.flatpickr-time {
+    background: var(--pk-bg) !important;
+    border-top: 1px solid var(--pk-border) !important;
+    height: 48px !important;
+}
+
+.flatpickr-time input,
+.flatpickr-time .flatpickr-time-separator {
+    color: var(--pk-text) !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    background: transparent !important;
+}
+
+.flatpickr-time input:focus {
+    background: var(--pk-accent-dim) !important;
+    color: var(--pk-accent) !important;
+}
+
+.flatpickr-time .numInputWrapper span:hover {
+    background: var(--pk-accent) !important;
+    color: #0a0a12 !important;
+}

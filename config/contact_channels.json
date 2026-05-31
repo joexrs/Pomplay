@@ -1,0 +1,20 @@
+{
+  "support": {
+    "primary": "whatsapp",
+    "message": "Hola, necesito ayuda con Pomplay.",
+    "channels": {
+      "whatsapp": {
+        "enabled": true,
+        "phone": "+51944957261"
+      },
+      "instagram": {
+        "enabled": false,
+        "url": ""
+      },
+      "facebook": {
+        "enabled": false,
+        "url": ""
+      }
+    }
+  }
+}

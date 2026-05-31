@@ -1,0 +1,365 @@
+/* ===================================
+   REPRODUCTOR DE VIDEO PERSONALIZADO
+   =================================== */
+
+.video-player-wrap {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.video-player {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 70vh;
+}
+
+/* Controles personalizados */
+.custom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  padding: 20px 15px 15px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.video-player-wrap:hover .custom-controls,
+.custom-controls.show {
+  opacity: 1;
+}
+
+/* Barra de progreso */
+.progress-bar-container {
+  margin-bottom: 12px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.progress-filled {
+  height: 100%;
+  background: var(--accent, #e74c3c);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.1s linear;
+  position: relative;
+}
+
+.progress-filled::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: var(--accent, #e74c3c);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.progress-bar:hover .progress-filled::after {
+  opacity: 1;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Fila de controles */
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls-left,
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Botones de control */
+.control-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+/* Control de volumen */
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.volume-slider {
+  width: 0;
+  opacity: 0;
+  transition: all 0.3s ease;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  outline: none;
+}
+
+.volume-control:hover .volume-slider {
+  width: 80px;
+  opacity: 1;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent, #e74c3c);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent, #e74c3c);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* Control de velocidad */
+.speed-control {
+  position: relative;
+}
+
+/* Control de zoom */
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.zoom-level {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 45px;
+  text-align: center;
+  user-select: none;
+}
+
+.zoom-control .control-btn {
+  min-width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+
+.speed-control {
+  position: relative;
+}
+
+.speed-text {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 30px;
+  text-align: center;
+}
+
+.speed-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 10px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 80px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.speed-menu.show {
+  display: flex;
+}
+
+.speed-menu button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.speed-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.speed-menu button.active {
+  background: var(--accent, #e74c3c);
+  font-weight: 600;
+}
+
+/* Overlay de carga */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--accent, #e74c3c);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .custom-controls {
+    padding: 15px 10px 10px;
+  }
+  
+  .control-btn {
+    font-size: 16px;
+    min-width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+  
+  .controls-left,
+  .controls-right {
+    gap: 4px;
+  }
+  
+  .volume-control:hover .volume-slider {
+    width: 60px;
+  }
+  
+  .time-display {
+    font-size: 11px;
+  }
+  
+  /* Asegurar que los botones de PIP y fullscreen sean visibles */
+  #pipBtn,
+  #fullscreenBtn {
+    min-width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .controls-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .controls-left,
+  .controls-right {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .control-btn {
+    min-width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  
+  /* Mostrar todos los botones en móvil */
+  #rewindBtn,
+  #forwardBtn,
+  .volume-control,
+  .zoom-control,
+  .speed-control,
+  #pipBtn,
+  #fullscreenBtn {
+    display: flex !important;
+  }
+  
+  /* Ajustar el control de volumen para móvil */
+  .volume-slider {
+    width: 60px;
+    opacity: 1;
+  }
+  
+  /* Ajustar zoom control para móvil */
+  .zoom-control {
+    padding: 4px 6px;
+  }
+  
+  .zoom-level {
+    font-size: 12px;
+    min-width: 40px;
+  }
+}

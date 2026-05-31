@@ -1,0 +1,71 @@
+/**
+ * Layout Inline Fixes
+ * Estilos extraídos de inline styles en header y footer
+ */
+
+/* Header - Brand Logo */
+.nav-brand .brand-icon img {
+  height: 36px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+/* Footer - Brand Logo */
+.footer-brand .nav-brand {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+}
+
+.footer-brand .brand-icon img {
+  height: 48px;
+  object-fit: contain;
+  padding-bottom: 8px;
+}
+
+/* Footer - Made with Love */
+.footer-made-with-love {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.footer-made-with-love .heart-icon {
+  color: var(--accent);
+}
+
+/* About Page - Bento Items */
+.bento-vision .glow-overlay {
+  background: #601c38;
+}
+
+.bento-valores .glow-overlay {
+  top: auto;
+  bottom: -50px;
+  left: -50px;
+}
+
+/* Login Page - Titles */
+.login-text-content h1 .brand-highlight {
+  color: var(--color-brand);
+}
+
+.login-form-wrapper h2 .brand-highlight {
+  color: var(--color-brand);
+}
+
+/* Login Page - Error Alert */
+.login-error-alert {
+  background: rgba(236, 66, 55, 0.2);
+  border: 1px solid var(--color-brand);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #fff;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+/* Test API - Back Link */
+.test-api-back-link {
+  color: #4ade80;
+}

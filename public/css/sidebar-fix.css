@@ -1,0 +1,306 @@
+/**
+ * POMPLAY - Sidebar Fix
+ * Corrige conflictos entre main.css y responsive-consolidated.css
+ */
+
+/* ===== BASE SIDEBAR STYLES (Desktop) ===== */
+.app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 240px !important;
+    z-index: 1030 !important;
+    background: #1a1a2e !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transform: translateX(0) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Sidebar hidden by default on mobile */
+@media (max-width: 767px) {
+    .app-sidebar {
+        transform: translateX(-100%) !important;
+        pointer-events: none !important;
+    }
+    
+    /* Sidebar visible when toggled */
+    .sidenav-toggled .app-sidebar,
+    body.sidenav-toggled .app-sidebar,
+    .app.sidenav-toggled .app-sidebar {
+        transform: translateX(0) !important;
+        pointer-events: auto !important;
+    }
+}
+
+/* ===== SIDEBAR TOGGLE BUTTON ===== */
+.app-sidebar__toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    background: var(--color-brand, #ec4237) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    font-size: 18px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    flex-shrink: 0 !important;
+}
+
+.app-sidebar__toggle::before {
+    content: "\f479" !important;
+    font-family: bootstrap-icons !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    display: block !important;
+}
+
+.app-sidebar__toggle:hover,
+.app-sidebar__toggle:focus {
+    background: #ff4757 !important;
+    color: #ffffff !important;
+    transform: scale(1.05) !important;
+    text-decoration: none !important;
+    outline: none !important;
+}
+
+.app-sidebar__toggle:active {
+    transform: scale(0.95) !important;
+}
+
+/* ===== SIDEBAR OVERLAY ===== */
+.app-sidebar__overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 1020 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.3s ease, visibility 0.3s ease !important;
+    pointer-events: none !important;
+}
+
+/* Overlay visible when sidebar is open */
+.sidenav-toggled .app-sidebar__overlay,
+body.sidenav-toggled .app-sidebar__overlay,
+.app.sidenav-toggled .app-sidebar__overlay {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+/* ===== CONTENT AREA ===== */
+.app-content {
+    margin-left: 240px !important;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 100vh !important;
+}
+
+@media (max-width: 767px) {
+    .app-content {
+        margin-left: 0 !important;
+    }
+}
+
+/* ===== HEADER ===== */
+.app-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 56px !important;
+    z-index: 1040 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 16px !important;
+    background: rgba(26, 26, 46, 0.95) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ===== MENU STYLES ===== */
+.app-menu {
+    padding: 16px 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+.app-menu__item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 12px 20px !important;
+    margin: 0 !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    border-left: 3px solid transparent !important;
+    gap: 12px !important;
+    cursor: pointer !important;
+}
+
+.app-menu__item:hover {
+    background: rgba(236, 66, 55, 0.1) !important;
+    color: #ffffff !important;
+    border-left-color: var(--color-brand, #ec4237) !important;
+}
+
+.app-menu__item.active {
+    background: rgba(236, 66, 55, 0.15) !important;
+    color: var(--color-brand, #ec4237) !important;
+    border-left-color: var(--color-brand, #ec4237) !important;
+}
+
+.app-menu__icon {
+    font-size: 1.25rem !important;
+    min-width: 24px !important;
+    flex-shrink: 0 !important;
+    color: inherit !important;
+}
+
+.app-menu__label {
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    flex: 1 !important;
+    white-space: nowrap !important;
+}
+
+/* ===== TREEVIEW (Submenu) ===== */
+.treeview .app-menu__item {
+    justify-content: space-between !important;
+}
+
+.treeview-indicator {
+    margin-left: auto !important;
+    transition: transform 0.3s ease !important;
+    font-size: 0.875rem !important;
+    flex-shrink: 0 !important;
+    color: inherit !important;
+}
+
+.treeview.is-expanded .treeview-indicator {
+    transform: rotate(180deg) !important;
+}
+
+.treeview-menu {
+    display: none !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.3s ease !important;
+}
+
+.treeview.is-expanded .treeview-menu {
+    display: block !important;
+    max-height: 500px !important;
+}
+
+.treeview-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 20px 10px 52px !important;
+    margin: 0 !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-decoration: none !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+    gap: 12px !important;
+    cursor: pointer !important;
+}
+
+.treeview-item:hover {
+    background: rgba(236, 66, 55, 0.1) !important;
+    color: #ffffff !important;
+}
+
+.treeview-item.active {
+    background: rgba(236, 66, 55, 0.15) !important;
+    color: var(--color-brand, #ec4237) !important;
+}
+
+.treeview-item .icon {
+    font-size: 1rem !important;
+    min-width: 20px !important;
+    flex-shrink: 0 !important;
+    color: inherit !important;
+}
+
+/* ===== BODY LOCK ===== */
+body.sidenav-toggled {
+    overflow: hidden !important;
+}
+
+@media (min-width: 768px) {
+    body.sidenav-toggled {
+        overflow: visible !important;
+    }
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+@media (max-width: 767px) {
+    .app-header {
+        padding: 0 8px !important;
+    }
+    
+    .app-header__logo {
+        position: absolute !important;
+        left: 56px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+    }
+    
+    .app-nav {
+        position: absolute !important;
+        right: 8px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+    }
+    
+    .app-sidebar {
+        top: 56px !important;
+        height: calc(100vh - 56px) !important;
+    }
+    
+    .app-sidebar__overlay {
+        top: 56px !important;
+    }
+    
+    .app-content {
+        margin-top: 56px !important;
+        padding: 16px !important;
+    }
+}
+
+/* ===== DESKTOP BEHAVIOR ===== */
+@media (min-width: 768px) {
+    /* On desktop, sidebar should be visible by default */
+    .app-sidebar {
+        transform: translateX(0) !important;
+        pointer-events: auto !important;
+    }
+    
+    /* Toggle button should still work on desktop */
+    .sidenav-toggled .app-sidebar,
+    body.sidenav-toggled .app-sidebar,
+    .app.sidenav-toggled .app-sidebar {
+        transform: translateX(-100%) !important;
+        pointer-events: none !important;
+    }
+    
+    .sidenav-toggled .app-content,
+    body.sidenav-toggled .app-content,
+    .app.sidenav-toggled .app-content {
+        margin-left: 0 !important;
+    }
+}

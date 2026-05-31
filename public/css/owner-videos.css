@@ -1,0 +1,249 @@
+/**
+ * Owner Videos Page Styles
+ * Estilos para la página de videos del propietario
+ */
+
+/* Local Selector Card */
+.local-selector-card {
+  margin-bottom: 20px;
+  padding: 20px;
+}
+
+.local-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.local-selector-field {
+  flex: 1;
+}
+
+.local-selector-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--dk-muted);
+}
+
+.local-selector-select {
+  width: 100%;
+}
+
+/* Filters Card */
+.filters-card {
+  margin-bottom: 20px;
+  padding: 20px;
+}
+
+.filters-form {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filter-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--dk-muted);
+}
+
+.filter-input,
+.filter-select {
+  width: 100%;
+}
+
+/* Filter Buttons */
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--dk-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-filter:hover {
+  background: var(--dk-accent-hover, #d32f2f);
+  transform: translateY(-2px);
+}
+
+.btn-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-filter-clear:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Empty State */
+.videos-empty-state {
+  text-align: center;
+  padding: 40px;
+}
+
+.videos-empty-icon {
+  font-size: 2rem;
+  color: var(--dk-muted);
+}
+
+.videos-empty-text {
+  color: var(--dk-muted);
+  margin-top: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  /* Filters Card - Más padding en móvil */
+  .filters-card {
+    padding: 24px 20px;
+    margin-bottom: 24px;
+  }
+
+  .filters-form {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Filter Fields - Mejor espaciado */
+  .filter-field {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .filter-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .filter-input,
+  .filter-select {
+    padding: 14px 16px;
+    font-size: 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    transition: all 0.3s ease;
+  }
+
+  .filter-input:focus,
+  .filter-select:focus {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--dk-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+  }
+
+  /* Filter Actions - Botones más grandes y táctiles */
+  .filter-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .btn-filter,
+  .btn-filter-clear {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+    padding: 16px 24px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-filter {
+    background: var(--dk-accent);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+  }
+
+  .btn-filter:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+  }
+
+  .btn-filter-clear {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-filter-clear:active {
+    transform: translateY(0);
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  /* Local Selector - Mejor en móvil */
+  .local-selector-card {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .local-selector-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .local-selector-select {
+    padding: 14px 16px;
+    font-size: 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+}
+
+/* Responsive para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  .filters-card {
+    padding: 20px 16px;
+  }
+
+  .filter-label,
+  .local-selector-label {
+    font-size: 0.95rem;
+  }
+
+  .btn-filter,
+  .btn-filter-clear {
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+}

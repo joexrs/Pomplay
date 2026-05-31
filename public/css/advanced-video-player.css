@@ -1,0 +1,472 @@
+/**
+ * Advanced Video Player Styles
+ * Responsive y moderno
+ */
+
+.video-player-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.video-player-wrap video {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+/* Controles avanzados */
+.advanced-video-controls {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
+    padding: 20px;
+    color: #fff;
+    font-size: 14px;
+    margin-top: 10px;
+    border-radius: 0 0 8px 8px;
+    background-color: #1a1a1a;
+}
+
+.controls-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.controls-row:last-child {
+    margin-bottom: 0;
+}
+
+.controls-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Botones de control */
+.control-btn {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.control-btn:hover {
+    background: #3a3a3a;
+    border-color: #666;
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    background: #1a1a1a;
+    transform: scale(0.98);
+}
+
+.control-btn i {
+    font-size: 14px;
+}
+
+/* Tiempo de reproducción */
+.time-display {
+    font-size: 13px;
+    color: #ccc;
+    min-width: 100px;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+/* Nivel de zoom */
+.zoom-level {
+    min-width: 50px;
+    text-align: center;
+    font-size: 12px;
+    background: #2a2a2a;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid #444;
+}
+
+/* Etiquetas de controles */
+.control-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #aaa;
+}
+
+/* Select y sliders */
+.control-select,
+.volume-slider {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 5px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.control-select:hover,
+.volume-slider:hover {
+    border-color: #666;
+}
+
+.control-select:focus,
+.volume-slider:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.control-select option {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.volume-slider {
+    width: 100px;
+    height: 5px;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #0066cc;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #0066cc;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
+.volume-label {
+    font-size: 11px;
+    color: #aaa;
+    min-width: 35px;
+}
+
+/* Barra de progreso */
+.progress-container {
+    width: 100%;
+    padding: 10px 0 0 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #444;
+    border-radius: 3px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    border: none;
+}
+
+.progress-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #0066cc;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 4px rgba(0, 102, 204, 0.5);
+}
+
+.progress-bar::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #0066cc;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 4px rgba(0, 102, 204, 0.5);
+}
+
+.progress-bar::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
+.progress-bar:hover::-webkit-slider-thumb {
+    background: #0088ff;
+    box-shadow: 0 0 6px rgba(0, 102, 204, 0.8);
+}
+
+.progress-bar:hover::-moz-range-thumb {
+    background: #0088ff;
+    box-shadow: 0 0 6px rgba(0, 102, 204, 0.8);
+}
+
+/* Indicador de zoom */
+.zoom-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ===== RESPONSIVE DISEÑO ===== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
+    .advanced-video-controls {
+        padding: 15px;
+    }
+
+    .controls-row {
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .control-btn {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .control-select,
+    .volume-slider {
+        font-size: 11px;
+    }
+
+    .time-display {
+        font-size: 12px;
+        min-width: 80px;
+    }
+
+    .zoom-level {
+        font-size: 11px;
+        min-width: 45px;
+    }
+}
+
+/* Móviles pequeños (hasta 480px) */
+@media (max-width: 480px) {
+    .advanced-video-controls {
+        padding: 10px;
+    }
+
+    .controls-row {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .controls-group {
+        gap: 4px;
+    }
+
+    .control-btn {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .control-btn i {
+        font-size: 12px;
+    }
+
+    /* Ocultar texto largo en móviles */
+    .control-btn:not(:hover)::after {
+        content: '';
+    }
+
+    .control-select,
+    .volume-slider {
+        font-size: 10px;
+        max-width: 60px;
+    }
+
+    .control-label {
+        font-size: 10px;
+    }
+
+    .time-display {
+        font-size: 11px;
+        min-width: 70px;
+    }
+
+    .volume-label {
+        font-size: 10px;
+        min-width: 30px;
+    }
+
+    /* Reducir tamaño del zoom-level */
+    .zoom-level {
+        font-size: 10px;
+        min-width: 40px;
+        padding: 3px 6px;
+    }
+
+    /* Organizar controles en filas más compactas */
+    .controls-group {
+        flex-wrap: wrap;
+    }
+
+    /* Botones más pequeños */
+    .progress-bar {
+        height: 4px;
+    }
+
+    .progress-bar::-webkit-slider-thumb,
+    .progress-bar::-moz-range-thumb {
+        width: 10px;
+        height: 10px;
+    }
+
+    .volume-slider {
+        width: 60px;
+        height: 4px;
+    }
+
+    .volume-slider::-webkit-slider-thumb,
+    .volume-slider::-moz-range-thumb {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+/* Móviles medianos (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .advanced-video-controls {
+        padding: 12px;
+    }
+
+    .controls-row {
+        gap: 8px;
+        margin-bottom: 9px;
+    }
+
+    .control-btn {
+        padding: 7px 9px;
+        font-size: 11px;
+    }
+
+    .control-select,
+    .volume-slider {
+        font-size: 10px;
+    }
+
+    .time-display {
+        font-size: 11px;
+        min-width: 75px;
+    }
+
+    .zoom-level {
+        font-size: 10px;
+        min-width: 42px;
+    }
+}
+
+/* Pantalla completa */
+.video-player-wrap:fullscreen,
+.video-player-wrap:-webkit-full-screen,
+.video-player-wrap:-moz-full-screen,
+.video-player-wrap:-ms-fullscreen {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+}
+
+.video-player-wrap:fullscreen video,
+.video-player-wrap:-webkit-full-screen video,
+.video-player-wrap:-moz-full-screen video,
+.video-player-wrap:-ms-fullscreen video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Picture in Picture */
+video:picture-in-picture {
+    border: 2px solid #0066cc;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .advanced-video-controls {
+        background-color: #0d0d0d;
+    }
+
+    .control-btn {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+
+    .control-btn:hover {
+        background: #2a2a2a;
+        border-color: #555;
+    }
+}
+
+/* Impresión - Ocultar controles */
+@media print {
+    .advanced-video-controls {
+        display: none;
+    }
+}
+
+/* Temas de alto contraste */
+@media (prefers-contrast: more) {
+    .control-btn {
+        border-width: 2px;
+    }
+
+    .progress-bar,
+    .volume-slider {
+        height: 8px;
+    }
+
+    .zoom-indicator {
+        border-width: 2px;
+    }
+}
+
+/* Animaciones reducidas para usuarios que lo prefieren */
+@media (prefers-reduced-motion: reduce) {
+    .control-btn,
+    .control-select,
+    .volume-slider {
+        transition: none;
+    }
+
+    .control-btn:hover {
+        transform: none;
+    }
+}

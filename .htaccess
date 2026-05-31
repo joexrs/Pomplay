@@ -1,0 +1,83 @@
+
+
+# Seguridad Básica
+Options -Indexes
+AddDefaultCharset utf-8
+
+# Prevenir carga en iframes (Clickjacking protection)
+#Header always set X-Frame-Options "SAMEORIGIN"
+#Header always set Content-Security-Policy "frame-ancestors 'self'"
+
+# Forzar HTTPS (descomenta solo si tienes SSL configurado correctamente)
+# <IfModule mod_headers.c>
+#     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+# </IfModule>
+
+# Bloquear acceso a archivos sensibles
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "(\.env|config\.php|conexion\.php|composer\.json|composer\.lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Bloquear acceso directo a vendor (pero PHP puede usarlo)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^vendor/.*$ - [F,L]
+</IfModule>
+
+# ============================================
+# URL Rewriting (Router Centralizado y Recursos)
+# ============================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # RewriteBase /
+    
+    # Forzar HTTPS (descomenta si tienes SSL configurado)
+    # RewriteCond %{HTTPS} off
+     # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301] 
+    
+    # 1. Permitir acceso directo a la carpeta public/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^public/ - [L]
+    
+    # 2. Redirigir la raíz
+    RewriteRule ^$ public/index.php [L]
+
+    # 3. Mapear recursos estáticos a la carpeta public/ de forma transparente (opcional)
+    # Si pides '/css/style.css', servimos '/public/css/style.css'
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(css|js|img|fontawesome|datatables|images|base_datos|webfonts)(/.*)?$ public/$1$2 [L]
+    
+    # 4. Servir videos desde la carpeta video/ en la raíz (no en public/)
+    RewriteCond %{REQUEST_URI} ^/video/.*\.(mp4|avi|mov|mkv|webm|flv|m4v|wmv)$ [NC]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ - [L]
+
+    # 5. Rutas de admin - servir archivos PHP directamente
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^admin/.*\.php$ - [L]
+    
+    # 6. Rutas de owner - servir archivos PHP directamente
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^owner/.*\.php$ - [L]
+
+    # 7. Todo lo demás al controlador frontal (Router)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+</IfModule>
+
+# ============================================
+# Tipos MIME
+# ============================================
+AddType video/mp4 .mp4
+AddType video/webm .webm
+AddType application/json .json
+AddType text/javascript .js
+AddType text/css .css

@@ -1,0 +1,416 @@
+/**
+ * Owner Membership Page Styles
+ * Estilos para la página de membresía del propietario
+ */
+
+/* Local Selector */
+.membership-local-selector {
+  margin-bottom: 24px;
+  padding: 24px;
+}
+
+.membership-local-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.membership-local-field {
+  flex: 1;
+}
+
+.membership-local-label {
+  margin-bottom: 12px;
+}
+
+.membership-local-select {
+  width: 100%;
+}
+
+/* Success Alert */
+.membership-success-alert {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.25));
+  border: 1px solid rgba(34, 197, 94, 0.6);
+  color: #4ade80;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
+}
+
+.membership-success-icon {
+  font-size: 1.2rem;
+}
+
+.membership-success-text {
+  font-weight: 600;
+}
+
+/* Membership Status Card */
+.membership-status-card {
+  padding: 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.membership-status-card.active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(22, 163, 74, 0.18));
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+
+.membership-status-card.expired {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.25), rgba(239, 68, 68, 0.18));
+  border: 1px solid rgba(248, 113, 113, 0.6);
+}
+
+/* Background Decoration */
+.membership-bg-decoration {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+}
+
+.membership-bg-decoration.active {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.35), transparent);
+}
+
+.membership-bg-decoration.expired {
+  background: radial-gradient(circle, rgba(248, 113, 113, 0.35), transparent);
+}
+
+/* Status Header */
+.membership-status-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.membership-status-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-size: 2.5rem;
+}
+
+.membership-status-icon.active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(22, 163, 74, 0.3));
+  color: #4ade80;
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+}
+
+.membership-status-icon.expired {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.4), rgba(239, 68, 68, 0.3));
+  color: #fca5a5;
+  box-shadow: 0 8px 24px rgba(248, 113, 113, 0.4);
+}
+
+.membership-status-title {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.membership-status-title.active {
+  color: #4ade80;
+}
+
+.membership-status-title.expired {
+  color: #fca5a5;
+}
+
+.membership-status-subtitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.95rem;
+}
+
+/* Membership Details Grid */
+.membership-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.membership-detail-item {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.membership-detail-label {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.membership-detail-value {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #ffffff;
+}
+
+.membership-detail-icon {
+  margin-right: 6px;
+}
+
+.membership-detail-icon.active {
+  color: #4ade80;
+}
+
+.membership-detail-icon.expired {
+  color: #fca5a5;
+}
+
+/* Days Remaining Highlight */
+.membership-days-remaining {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(22, 163, 74, 0.25));
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+
+.membership-days-remaining .membership-detail-label {
+  color: #4ade80;
+}
+
+.membership-days-remaining .membership-detail-value {
+  font-size: 1.5rem;
+  color: #4ade80;
+  font-weight: 800;
+}
+
+/* Progress Bar */
+.membership-progress-card {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.membership-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.membership-progress-label {
+  margin: 0;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.membership-progress-label i {
+  color: #4ade80;
+  margin-right: 8px;
+}
+
+.membership-progress-percentage {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.membership-progress-bar-container {
+  width: 100%;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.membership-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  transition: width 0.6s ease;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(74, 222, 128, 0.5);
+}
+
+.membership-progress-info {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.membership-progress-info i {
+  margin-right: 6px;
+}
+
+.membership-progress-info.success {
+  color: #4ade80;
+}
+
+.membership-progress-info.warning {
+  color: #fbbf24;
+}
+
+.membership-progress-info.danger {
+  color: #fca5a5;
+}
+
+/* Actions Card */
+.membership-actions-card {
+  padding: 28px;
+}
+
+.membership-actions-title {
+  margin: 0 0 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.membership-actions-title i {
+  color: var(--color-brand);
+}
+
+/* Expired Alert */
+.membership-expired-alert {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.25), rgba(239, 68, 68, 0.18));
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.membership-expired-text {
+  margin: 0 0 16px;
+  color: #fca5a5;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.membership-renew-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 24px;
+  font-size: 1rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Active Info */
+.membership-active-info {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(22, 163, 74, 0.18));
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.membership-active-text {
+  color: #4ade80;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+/* Back Button */
+.membership-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  text-decoration: none;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Empty State */
+.membership-empty-state {
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.membership-empty-icon-wrapper {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.3), rgba(239, 68, 68, 0.2));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(248, 113, 113, 0.3);
+}
+
+.membership-empty-icon {
+  font-size: 3rem;
+  color: #fca5a5;
+}
+
+.membership-empty-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 12px;
+  color: #ffffff;
+}
+
+.membership-empty-description {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 24px;
+}
+
+.membership-empty-info {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 32px;
+  font-size: 0.9rem;
+}
+
+.membership-empty-info i {
+  margin-right: 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .membership-status-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .membership-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .membership-progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
