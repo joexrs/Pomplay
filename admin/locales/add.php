@@ -9,6 +9,154 @@ $propietarios = $stmtPropietarios->fetchAll(PDO::FETCH_ASSOC);
 $stmtPropietarios->closeCursor();
 ?>
 
+<style>
+  .app-content {
+    color: #ffffff;
+  }
+
+  .adm-form-wrap {
+    max-width: 980px !important;
+    margin: 0 auto;
+    padding: 24px 16px 44px;
+  }
+
+  .adm-form-card {
+    background: linear-gradient(180deg, rgba(17,19,45,.98), rgba(8,10,30,.98));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 18px 45px rgba(0,0,0,.28);
+  }
+
+  .adm-form-heading {
+    margin-bottom: 22px;
+  }
+
+  .adm-form-heading h1 {
+    color: #ffffff;
+    font-size: clamp(1.3rem, 3vw, 1.7rem);
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .adm-form-heading p {
+    color: rgba(255,255,255,.68);
+    margin: 0;
+  }
+
+  .adm-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .adm-field {
+    margin-bottom: 20px;
+  }
+
+  .adm-label {
+    display: block;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: .92rem;
+    margin-bottom: 8px;
+  }
+
+  .adm-input,
+  .adm-select {
+    width: 100%;
+    min-height: 48px;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+
+  .adm-input::placeholder {
+    color: rgba(255,255,255,.42);
+  }
+
+  .adm-select option {
+    color: #111;
+  }
+
+  .adm-input:focus,
+  .adm-select:focus {
+    border-color: rgba(236,66,55,.75);
+    box-shadow: 0 0 0 4px rgba(236,66,55,.14);
+    background: rgba(255,255,255,.075);
+  }
+
+  .adm-field small {
+    color: rgba(255,255,255,.55) !important;
+    font-size: .82rem !important;
+    line-height: 1.35;
+  }
+
+  .adm-form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .btn-adm-save,
+  .btn-adm-cancel {
+    min-height: 46px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .btn-adm-save {
+    background: #ec4237;
+    color: #ffffff;
+    box-shadow: 0 12px 28px rgba(236,66,55,.25);
+  }
+
+  .btn-adm-cancel {
+    background: rgba(255,255,255,.06);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+
+  @media (max-width: 720px) {
+    .adm-form-wrap {
+      padding: 18px 12px 34px;
+    }
+
+    .adm-form-card {
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .adm-grid-2 {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .adm-form-actions {
+      flex-direction: column;
+    }
+
+    .btn-adm-save,
+    .btn-adm-cancel {
+      width: 100%;
+    }
+  }
+</style>
+
 <main class="app-content">
   <div class="page-header">
     <div class="page-header__content">
