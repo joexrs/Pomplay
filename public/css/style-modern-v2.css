@@ -1868,7 +1868,9 @@ input.glass-select[type="text"]::placeholder {
   }
 
   .date-label {
-    text-align: left !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  text-align: center !important;
   }
 
   .search-field {
@@ -2007,7 +2009,9 @@ input.glass-select[type="text"]::placeholder {
   }
 
   .date-label {
-    text-align: left !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  text-align: center !important;
   }
 
   .glass-select {
