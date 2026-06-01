@@ -1,6 +1,155 @@
 <?php include '../shared/header_admin.php'; ?>
 <?php include '../../conexion.php'; ?>
 <?php include '../config.php'; ?>
+
+<style>
+  .adm-form-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+
+  .adm-form-heading {
+    margin-bottom: 22px;
+  }
+
+  .adm-form-heading h1 {
+    color: #ffffff;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .adm-form-heading p {
+    color: rgba(255,255,255,.68);
+    margin: 0;
+  }
+
+  .adm-form-card {
+    background: linear-gradient(180deg, rgba(17,19,45,.98), rgba(8,10,30,.98));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 18px 45px rgba(0,0,0,.28);
+  }
+
+  .adm-field {
+    margin-bottom: 20px;
+  }
+
+  .adm-label {
+    display: block;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: .92rem;
+    margin-bottom: 8px;
+  }
+
+  .adm-input,
+  .adm-select {
+    width: 100%;
+    min-height: 48px;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+
+  .adm-input::placeholder {
+    color: rgba(255,255,255,.42);
+  }
+
+  .adm-select option {
+    color: #111;
+  }
+
+  .adm-input:focus,
+  .adm-select:focus {
+    border-color: rgba(236,66,55,.75);
+    box-shadow: 0 0 0 4px rgba(236,66,55,.14);
+    background: rgba(255,255,255,.075);
+  }
+
+  .adm-input[readonly] {
+    background: rgba(236,66,55,.08);
+    border-color: rgba(236,66,55,.28);
+    color: #ffffff;
+    font-weight: 800;
+    letter-spacing: .04em;
+  }
+
+  .adm-help {
+    display: block;
+    margin-top: 7px;
+    color: rgba(255,255,255,.55);
+    font-size: .82rem;
+    line-height: 1.35;
+  }
+
+  .adm-divider {
+    border: 0;
+    border-top: 1px solid rgba(255,255,255,.09);
+    margin: 26px 0;
+  }
+
+  .adm-form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .btn-adm-save,
+  .btn-adm-cancel {
+    min-height: 46px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .btn-adm-save {
+    background: #ec4237;
+    color: #ffffff;
+    box-shadow: 0 12px 28px rgba(236,66,55,.25);
+  }
+
+  .btn-adm-cancel {
+    background: rgba(255,255,255,.06);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+
+  @media (max-width: 640px) {
+    .adm-form-wrap {
+      padding: 18px 12px 32px;
+    }
+
+    .adm-form-card {
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .adm-form-actions {
+      flex-direction: column;
+    }
+
+    .btn-adm-save,
+    .btn-adm-cancel {
+      width: 100%;
+    }
+  }
+</style>
+
 <main class="app-content">
 <?php
 $stmt = $pdo->prepare("CALL GetLocalesPaginadoSimple(:p_limit, :p_offset)");
@@ -16,23 +165,7 @@ $stmt->closeCursor();
   </div>
 
   <div class="adm-form-card">
-    <form action="procesos/procesar_cancha.php" method="POST" autocomplete="off" id="formCancha">
-
-      <div class="adm-field">
-        <label class="adm-label" for="codigo_cancha">Código de la cancha</label>
-        <input type="text" id="codigo_cancha" name="codigo_cancha"
-               class="adm-input" placeholder="Ej: C01, C02…" 
-               required maxlength="10" pattern="[A-Za-z0-9]+" 
-               title="Solo letras y números, máximo 10 caracteres" />
-      </div>
-
-      <div class="adm-field">
-        <label class="adm-label" for="descripcion">Descripción</label>
-        <input type="text" id="descripcion" name="descripcion"
-               class="adm-input" placeholder="Nombre descriptivo de la cancha" 
-               required maxlength="70" minlength="3" />
-      </div>
-
+    <form action="procesos/procesar_cancha.php" method="POST" enctype="multipart/form-data" autocomplete="off" id="formCancha">
       <div class="adm-field">
         <label class="adm-label" for="id_local">Local</label>
         <select id="id_local" name="id_local" class="adm-select" required>
@@ -43,6 +176,45 @@ $stmt->closeCursor();
             </option>
           <?php endforeach; ?>
         </select>
+      </div>
+
+      <div class="adm-field">
+        <label class="adm-label" for="codigo_cancha">Código de la cancha</label>
+        <input type="text" id="codigo_cancha" name="codigo_cancha"
+              class="adm-input" placeholder="Seleccione un local para generar el código"
+              required maxlength="10" pattern="[A-Za-z0-9]+"
+              title="Solo letras y números, máximo 10 caracteres"
+              readonly />
+      </div>
+
+      <div class="adm-field">
+        <label class="adm-label" for="descripcion">Descripción</label>
+        <input type="text" id="descripcion" name="descripcion"
+               class="adm-input" placeholder="Nombre descriptivo de la cancha" 
+               required maxlength="70" minlength="3" />
+      </div>
+
+      <div class="adm-field">
+        <label class="adm-label" for="tipo_cancha">Tipo de cancha</label>
+        <input type="text" id="tipo_cancha" name="tipo_cancha"
+              class="adm-input" placeholder="Ej: Fútbol 7, vóley, sintética"
+              maxlength="100" />
+      </div>
+
+      <div class="adm-field">
+        <label class="adm-label" for="ubicacion">Ubicación</label>
+        <input type="text" id="ubicacion" name="ubicacion"
+              class="adm-input" placeholder="Ej: Primer piso, zona norte, cancha techada"
+              maxlength="150" />
+      </div>
+
+      <div class="adm-field">
+        <label class="adm-label" for="imagen_cancha">Imagen de la cancha</label>
+        <input type="file" id="imagen_cancha" name="imagen_cancha"
+              class="adm-input" accept="image/jpeg,image/png,image/webp,image/jpg" />
+        <small class="adm-help">
+          Formatos permitidos: JPG, PNG o WEBP. Si no subes imagen, se usará el logo de Pomplay.
+        </small>
       </div>
 
       <hr class="adm-divider">
@@ -61,27 +233,70 @@ $stmt->closeCursor();
 </div>
 
 <script>
+const baseUrl = "<?= $baseUrl ?>";
+
+document.getElementById('id_local').addEventListener('change', async function() {
+    const localId = this.value;
+    const codigoInput = document.getElementById('codigo_cancha');
+
+    codigoInput.value = '';
+
+    if (!localId) {
+        codigoInput.placeholder = 'Seleccione un local para generar el código';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${baseUrl}/admin/canchas/get_next_code.php?id_local=${encodeURIComponent(localId)}`);
+        const data = await response.json();
+
+        if (data.success && data.next_code) {
+            codigoInput.value = data.next_code;
+        } else {
+            alert(data.message || 'No se pudo generar el código de la cancha');
+        }
+    } catch (error) {
+        alert('Error al generar el código de la cancha');
+    }
+});
+
 document.getElementById('formCancha').addEventListener('submit', function(e) {
     const codigo = document.getElementById('codigo_cancha').value.trim();
     const descripcion = document.getElementById('descripcion').value.trim();
     const local = document.getElementById('id_local').value;
-    
+    const imagen = document.getElementById('imagen_cancha').files[0];
+
     if (!codigo || !descripcion || !local) {
         e.preventDefault();
         alert('Por favor complete todos los campos obligatorios');
         return false;
     }
-    
+
     if (codigo.length > 10) {
         e.preventDefault();
         alert('El código no puede exceder 10 caracteres');
         return false;
     }
-    
+
+    if (imagen.size > 3 * 1024 * 1024) {
+    e.preventDefault();
+    alert('La imagen no puede pesar más de 3MB');
+    return false;
+    }
+
     if (!/^[A-Za-z0-9]+$/.test(codigo)) {
         e.preventDefault();
         alert('El código solo puede contener letras y números');
         return false;
+    }
+
+    if (imagen) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+        if (!allowedTypes.includes(imagen.type)) {
+            e.preventDefault();
+            alert('La imagen debe ser JPG, PNG o WEBP');
+            return false;
+        }
     }
 });
 </script>
