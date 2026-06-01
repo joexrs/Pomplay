@@ -12,7 +12,7 @@
                     <option value="">LOCAL</option>
                     <?php foreach ($locales as $loc): ?>
                         <option value="<?= htmlspecialchars((string) $loc['id_local']) ?>">
-                            <?= htmlspecialchars($loc['nombre_local']) ?>
+                            <?= htmlspecialchars(mb_strtoupper($loc['nombre_local'], 'UTF-8')) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -154,7 +154,7 @@
                 (data || []).forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c.codigo_cancha;
-                    opt.textContent = c.descripcion;
+                    opt.textContent = (c.descripcion || '').toUpperCase();
                     canchaSel.appendChild(opt);
                 });
                 canchaSel.disabled = false;
