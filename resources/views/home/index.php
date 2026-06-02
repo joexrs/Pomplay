@@ -121,12 +121,20 @@
         }
     }
 
-    fechaTrigger.addEventListener('click', function () {
-        if (typeof fechaInp.showPicker === 'function') {
-            fechaInp.showPicker();
-        } else {
+    fechaTrigger.addEventListener('click', function (e) {
+        // En iOS Safari el input ya cubre el área con opacity:0,
+        // por lo que el toque llega directo al input. Este handler
+        // es fallback para desktop con showPicker().
+        if (e.target === fechaInp) return; // el toque ya fue al input, no hacer nada doble
+        try {
+            if (typeof fechaInp.showPicker === 'function') {
+                fechaInp.showPicker();
+            } else {
+                fechaInp.focus();
+                fechaInp.click();
+            }
+        } catch (_) {
             fechaInp.focus();
-            fechaInp.click();
         }
     });
 
