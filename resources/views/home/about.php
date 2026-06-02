@@ -21,7 +21,7 @@
     </div>
     <h3 class="bento-title">Misión</h3>
     <p class="bento-text">
-      Transformar partidos locales en experiencias deportivas que conecten a jugadores, de equipos y aficionados, elevando el valor de cada encuentro.
+      Transformar partidos locales en experiencias deportivas que conecten a jugadores, equipos y aficionados, elevando el valor de cada encuentro.
     </p>
   </div>
 
@@ -29,7 +29,15 @@
   <div class="bento-item bento-image reveal">
     <div class="pattern-dots"></div>
     <div class="pattern-diagonal"></div>
-    <video src="<?= $baseUrl ?>/public/images/pomplay logo.png" class="pomplay-logo-large" alt="Pomplay Logo" onerror="this.src='<?= $baseUrl ?>/public/img/logo.png'" />
+    <video
+      src="<?= $baseUrl ?>/video/about.mp4"
+      class="bento-video-ref"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+    ></video>
   </div>
 
   <!-- Visión -->

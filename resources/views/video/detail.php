@@ -338,5 +338,6 @@
 
 <script>window.POMPLAY_BASE = '<?= $baseUrl ?>';</script>
 <script src="<?= $baseUrl ?>/public/js/video-player.js?v=2.7"></script>
+<script src="<?= $baseUrl ?>/public/js/shared-modal.js?v=1.0"></script>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>
