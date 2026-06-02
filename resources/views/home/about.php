@@ -3,7 +3,7 @@
 <!-- Hero Section -->
 <div class="about-hero reveal">
   <div class="hero-content">
-    <h1>Vive el partido. <br>Revivelo en <span>Pomplay</span></h1>
+    <h1>Vive el partido. <br>Revívelo en <span>Pomplay</span></h1>
     <p>Elevando el valor de cada partido local.</p>
     <div class="hero-divider"></div>
   </div>
@@ -49,7 +49,7 @@
     </div>
     <h3 class="bento-title">Visión</h3>
     <p class="bento-text">
-      Ser la plataforma lider que impulse el deporte una nueva forma de vivir y compartir el deporte amaterur en Latinoamerica. 
+      Ser la plataforma líder que impulse el deporte como una nueva forma de vivir y compartir el deporte amateur en Latinoamérica.
     </p>
   </div>
 
@@ -62,7 +62,7 @@
     </div>
     <h3 class="bento-title">Valores</h3>
     <p class="bento-text">
-      Pasion, Comunidad, Innovacion, Accesibilidad, Compromiso. 
+      Pasión, Comunidad, Innovación, Accesibilidad, Compromiso.
     </p>
   </div>
 
@@ -70,7 +70,7 @@
 
 <!-- CTA al final de la página -->
 <div class="about-cta-footer">
-  <a href="<?= $baseUrl ?>/memberships.php" class="btn-hero-memberships">MEMBRESÍAS</a>
+  <a href="<?= $baseUrl ?>/memberships.php" class="btn-hero-memberships">VAMOS A TU CANCHA</a>
 </div>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

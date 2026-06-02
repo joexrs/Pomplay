@@ -732,19 +732,20 @@ body.page-about .site-footer {
   display: inline-block;
   padding: 12px 24px;
   margin-top: 18px;
-  background: linear-gradient(90deg,#ff5a5f,#ff7a5a);
+  background: #ec4237;
   color: #fff;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 700;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 15px rgba(236, 66, 55, 0.3);
   border: none;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .btn-hero-memberships:hover {
   transform: translateY(-3px);
-  opacity: 0.95;
+  box-shadow: 0 8px 30px rgba(236, 66, 55, 0.6);
+  background: #d63a2f;
 }
 
 @media (max-width: 480px) {
