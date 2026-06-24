@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
       <div class="profile-hero-info">
         <h2 class="profile-name"><?= htmlspecialchars($user['nombres'] . ' ' . $user['apellidos']) ?></h2>
         <div class="profile-role-badge">
-          <i class="fas fa-crown"></i>
+         
           <span>Propietario</span>
         </div>
         <div class="profile-stats">

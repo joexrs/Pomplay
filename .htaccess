@@ -1,6 +1,4 @@
 
-
-# Seguridad Básica
 Options -Indexes
 AddDefaultCharset utf-8
 
@@ -34,12 +32,12 @@ AddDefaultCharset utf-8
 # URL Rewriting (Router Centralizado y Recursos)
 # ============================================
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    # RewriteBase /
+    ##RewriteEngine On
+    ##RewriteBase /
     
     # Forzar HTTPS (descomenta si tienes SSL configurado)
-    # RewriteCond %{HTTPS} off
-     # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301] 
+   # RewriteCond %{HTTPS} off
+    #RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
     
     # 1. Permitir acceso directo a la carpeta public/
     RewriteCond %{REQUEST_FILENAME} -f
@@ -77,7 +75,6 @@ AddDefaultCharset utf-8
 # Tipos MIME
 # ============================================
 AddType video/mp4 .mp4
-AddType video/webm .webm
 AddType application/json .json
 AddType text/javascript .js
 AddType text/css .css

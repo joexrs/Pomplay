@@ -51,13 +51,13 @@ if ($requestPath === '/about.php' && $method === 'GET') {
     return;
 }
 
-if (in_array($requestPath, ['/membresias.php', '/memberships.php'], true) && $method === 'GET') {
-    $controllers['memberships']->index($context);
+if ($requestPath === '/login.php' && in_array($method, ['GET', 'POST'], true)) {
+    $controllers['auth']->login($context);
     return;
 }
 
-if ($requestPath === '/login.php' && in_array($method, ['GET', 'POST'], true)) {
-    $controllers['auth']->login($context);
+if (in_array($requestPath, [ '/memberships.php'], true) && $method === 'GET') {
+    $controllers['memberships']->index($context);
     return;
 }
 
@@ -97,6 +97,30 @@ if ($requestPath === '/api/horas' && $method === 'GET') {
     $controllers['apiHour']->available();
     return;
 }
+
+// API de PINs de video
+if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/generar-pin$#', $requestPath, $matches) && $method === 'POST') {
+    $controllers['apiVideoPin']->generate($matches[1]);
+    return;
+}
+
+if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/verificar-pin$#', $requestPath, $matches) && $method === 'POST') {
+    $controllers['apiVideoPin']->verify($matches[1]);
+    return;
+}
+
+// API de Clips (recorte profesional backend FFmpeg)
+if ($requestPath === '/api/create-clip' && $method === 'POST') {
+    $controllers['apiClip']->create();
+    return;
+}
+
+// Proxy de descarga de clips (fuerza descarga como archivo, resuelve cross-origin)
+if ($requestPath === '/api/download-clip' && $method === 'GET') {
+    $controllers['apiClip']->download();
+    return;
+}
+
 
 // Rutas del admin
 if (str_starts_with($requestPath, '/admin/')) {

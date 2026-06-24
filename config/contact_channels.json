@@ -5,7 +5,7 @@
     "channels": {
       "whatsapp": {
         "enabled": true,
-        "phone": "+51944957261"
+        "phone": "51944957261"
       },
       "instagram": {
         "enabled": false,

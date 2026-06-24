@@ -240,6 +240,31 @@ final class VideoRepository
         return (int) ($result['total'] ?? 0);
     }
 
+    /**
+     * Obtener todas las cámaras de un video (para multi-cámara del mismo partido)
+     */
+    public function getCamerasForVideoSession(
+        string $codigoCancha,
+        string $fechaPartido,
+        string $horaPartido
+    ): array {
+        try {
+            $stmt = $this->pdo->prepare('CALL GetCamerasForVideoSession(:codigo_cancha, :fecha_partido, :hora_partido)');
+            $stmt->execute([
+                ':codigo_cancha' => $codigoCancha,
+                ':fecha_partido' => $fechaPartido,
+                ':hora_partido' => $horaPartido,
+            ]);
+
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt->closeCursor();
+            return $rows;
+        } catch (\PDOException $e) {
+            error_log("getCamerasForVideoSession Error: " . $e->getMessage());
+            return [];
+        }
+    }
+
     // ===== MÉTODOS ORIGINALES POR COMPATIBILIDAD =====
 
     public function findPaginated(?string $fecha, ?string $codigo, ?int $categoria, int $limit, int $offset): array
@@ -305,12 +330,43 @@ final class VideoRepository
 
     public function findByCode(string $codigoVideo): ?array
     {
-        $stmt = $this->pdo->prepare('CALL GetVideoPorCodigo(:codigo_video)');
-        $stmt->bindParam(':codigo_video', $codigoVideo, PDO::PARAM_STR);
-        $stmt->execute();
-        $video = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->closeCursor();
+        // Intentar con el SP que incluye es_privado
+        try {
+            $stmt = $this->pdo->prepare('CALL GetVideoWithLocalPrivacy(:codigo_video)');
+            $stmt->bindParam(':codigo_video', $codigoVideo, PDO::PARAM_STR);
+            $stmt->execute();
+            $video = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->closeCursor();
 
-        return $video ?: null;
+            if ($video) {
+                return $video;
+            }
+        } catch (\PDOException $e) {
+            // Si el SP no existe, usar el original como fallback
+        }
+
+        // Fallback: usar SP original + consulta separada para es_privado
+        try {
+            $stmt = $this->pdo->prepare('CALL GetVideoPorCodigo(:codigo_video)');
+            $stmt->bindParam(':codigo_video', $codigoVideo, PDO::PARAM_STR);
+            $stmt->execute();
+            $video = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->closeCursor();
+
+            if ($video && !empty($video['id_local'])) {
+                // Consultar es_privado del local
+                $stmtPriv = $this->pdo->prepare(
+                    'SELECT COALESCE(es_privado, 0) AS es_privado FROM locales WHERE id_local = :id_local LIMIT 1'
+                );
+                $stmtPriv->execute([':id_local' => $video['id_local']]);
+                $localData = $stmtPriv->fetch(PDO::FETCH_ASSOC);
+                $stmtPriv->closeCursor();
+                $video['es_privado'] = (int) ($localData['es_privado'] ?? 0);
+            }
+
+            return $video ?: null;
+        } catch (\PDOException $e) {
+            return null;
+        }
     }
 }

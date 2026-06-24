@@ -1,0 +1,329 @@
+/* ============================================================
+   Video PIN Overlay — Verificación de código de acceso
+   Diseño glassmorphism dark theme, consistente con el reproductor
+   ============================================================ */
+
+/* ── Overlay fullscreen ─────────────────────────────── */
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.pin-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pin-overlay.removing {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* ── Card central ──────────────────────────────────── */
+.pin-card {
+  position: relative;
+  width: 90%;
+  max-width: 420px;
+  padding: 40px 32px 36px;
+  border-radius: 24px;
+  background: rgba(22, 27, 34, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 80px rgba(99, 102, 241, 0.08),
+    0 24px 48px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  text-align: center;
+  animation: pinCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pinCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Ícono decorativo ──────────────────────────────── */
+.pin-icon-wrap {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: iconPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(99, 102, 241, 0);
+  }
+}
+
+.pin-icon-wrap i {
+  font-size: 28px;
+  background: linear-gradient(135deg, #818cf8, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Textos ────────────────────────────────────────── */
+.pin-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f0f0f5;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.pin-subtitle {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+/* ── Inputs de dígitos ─────────────────────────────── */
+.pin-digits-wrap {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.pin-digit {
+  width: 50px;
+  height: 58px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f0f0f5;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  caret-color: #818cf8;
+  transition: all 0.2s ease;
+  -moz-appearance: textfield;
+}
+
+.pin-digit::-webkit-outer-spin-button,
+.pin-digit::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pin-digit:focus {
+  border-color: #818cf8;
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  transform: translateY(-2px);
+}
+
+.pin-digit.filled {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.pin-digit.error {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  animation: digitShake 0.5s ease;
+}
+
+.pin-digit.success {
+  border-color: #22c55e !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  animation: digitPop 0.3s ease;
+}
+
+@keyframes digitShake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(2px); }
+}
+
+@keyframes digitPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* ── Botón verificar ───────────────────────────────── */
+.pin-submit-btn {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+  position: relative;
+  overflow: hidden;
+}
+
+.pin-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.pin-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pin-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pin-submit-btn .spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Mensajes de error/info ────────────────────────── */
+.pin-message {
+  margin-top: 16px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  animation: msgFadeIn 0.3s ease;
+}
+
+@keyframes msgFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pin-message.visible {
+  display: flex;
+}
+
+.pin-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.pin-message.warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.pin-message.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.pin-message.info {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.pin-message i {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* ── Intentos restantes ────────────────────────────── */
+.pin-attempts {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Botón volver ──────────────────────────────────── */
+.pin-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.pin-back-link:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Responsive ────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pin-card {
+    padding: 32px 20px 28px;
+    border-radius: 20px;
+  }
+
+  .pin-digit {
+    width: 42px;
+    height: 50px;
+    font-size: 1.3rem;
+    border-radius: 12px;
+  }
+
+  .pin-digits-wrap {
+    gap: 8px;
+  }
+
+  .pin-icon-wrap {
+    width: 60px;
+    height: 60px;
+  }
+
+  .pin-icon-wrap i {
+    font-size: 24px;
+  }
+
+  .pin-title {
+    font-size: 1.1rem;
+  }
+}

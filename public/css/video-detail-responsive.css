@@ -1,9 +1,9 @@
-/* ============================================================
-   VIDEO PLAYER — FULLSCREEN OVERLAY DESIGN
-   Video ocupa toda la ventana, botones flotan encima
-   ============================================================ */
-
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+/* ============================================================
+   VIDEO-DETAIL-RESPONSIVE.CSS
+   Layout, rieles, modal compatible con iOS/Android/Desktop
+   ============================================================ */
 
 :root {
   --bg:        #09090b;
@@ -19,6 +19,18 @@
   --radius:    12px;
   --transition: 0.2s cubic-bezier(.4,0,.2,1);
   --btn-size:  46px;
+
+  /* Altura viewport cross-browser (iOS friendly) */
+  --vh: 100vh;
+  --dvh: 100vh;
+}
+
+@supports (height: 100 dvh) {
+  :root { --dvh: 100 dvh; }
+}
+
+@supports (-webkit-touch-callout: none) {
+  :root { --dvh: -webkit-fill-available; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,26 +57,6 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin: 0 !important;
 }
 
-#mobileShareModal, #clipsModal {
-  display: none;
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: 100vw !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.toast-notification {
-  display: none;
-  position: fixed !important;
-  max-width: none !important;
-  width: auto !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
 .site-nav, .site-footer, .page-header-detail, header, footer, nav {
   display: none !important;
 }
@@ -76,9 +68,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
-  height: 100dvh !important;
+  height: var(--dvh) !important;
   max-width: 100vw !important;
-  max-height: 100dvh !important;
+  max-height: var(--dvh) !important;
   margin: 0 !important;
   padding: 0 !important;
   background: #000 !important;
@@ -86,9 +78,6 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   overflow: hidden !important;
 }
 
-/* ============================================================
-   VIDEO
-   ============================================================ */
 .video-section {
   position: absolute;
   inset: 0;
@@ -115,7 +104,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 /* ============================================================
-   RIELES LATERALES
+   RIELES LATERALES — iconos blancos verticales
    ============================================================ */
 .player-rail {
   position: absolute;
@@ -128,14 +117,14 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   gap: 10px;
   padding: 20px 0;
   z-index: 30;
-  width: 64px;
+  width: 44px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
 }
 
-.player-rail-left  { left: 8px; }
-.player-rail-right { right: 8px; }
+.player-rail-left  { left: 6px; }
+.player-rail-right { right: 6px; }
 
 .video-player-wrap:hover .player-rail,
 .video-player-wrap.controls-visible .player-rail {
@@ -144,70 +133,62 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 @media (hover: none) {
-  .player-rail {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
+  .player-rail { opacity: 1 !important; pointer-events: auto !important; }
 }
 
 .rail-sep {
-  width: 20px;
+  width: 24px;
   height: 1px;
   background: var(--border-md);
   flex-shrink: 0;
+  margin: 4px 0;
 }
 
-/* ── Botón de riel ── */
+.rail-spacer { flex: 1; }
+
+/* ── Botón de riel — icono blanco "fantasma", sin contenedor ── */
 .rail-btn {
-  width: var(--btn-size);
-  height: var(--btn-size);
-  border-radius: 50%;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.7);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 15px;
-  transition: background var(--transition), color var(--transition), border-color var(--transition), transform var(--transition);
+  font-size: 22px;
+  padding: 6px;
+  transition: color var(--transition), transform var(--transition), opacity var(--transition);
   text-decoration: none;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
-  font-family: 'DM Mono', monospace;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   position: relative;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
+
+.rail-btn i { line-height: 1; display: inline-block; }
 
 .rail-btn:hover {
-  background: rgba(0,0,0,0.65);
-  border-color: rgba(255,255,255,0.25);
+  background: transparent;
   color: #fff;
-  transform: scale(1.07);
+  transform: scale(1.15);
 }
 
-.rail-btn:active { transform: scale(0.92); }
+.rail-btn:active { transform: scale(0.9); opacity: 0.75; }
 
-.rail-btn.accent {
-  background: rgba(231,76,60,0.25);
-  border-color: rgba(231,76,60,0.5);
-  color: #ff6b5b;
-}
-
-.rail-btn.accent:hover {
-  background: rgba(231,76,60,0.4);
-  border-color: rgba(231,76,60,0.7);
-  color: #fff;
-}
+.rail-btn.accent { color: var(--accent, #e74c3c); }
+.rail-btn.accent:hover { color: #ff6b5b; }
 
 /* Badge contador de clips */
 .rail-btn .badge-count {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: 0;
+  right: -2px;
   background: var(--accent);
   color: #fff;
   font-size: 9px;
@@ -218,7 +199,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 0 3px;
+  padding: 0 4px;
   font-family: 'DM Mono', monospace;
   border: 1.5px solid #000;
   line-height: 1;
@@ -228,43 +209,45 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 
 /* Botón de regreso */
 .rail-btn-back {
-  width: var(--btn-size);
-  height: var(--btn-size);
-  border-radius: 50%;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.7);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 22px;
+  padding: 6px;
   text-decoration: none;
-  transition: background var(--transition), color var(--transition), border-color var(--transition), transform var(--transition);
+  transition: color var(--transition), transform var(--transition), opacity var(--transition);
   -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
   flex-shrink: 0;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
+
+.rail-btn-back i { line-height: 1; }
 
 .rail-btn-back:hover {
-  background: rgba(0,0,0,0.65);
-  border-color: rgba(255,255,255,0.25);
+  background: transparent;
   color: #fff;
-  transform: translateX(-2px) scale(1.05);
+  transform: translateX(-2px) scale(1.15);
 }
 
-.rail-btn-back:active { transform: scale(0.9); }
-
-.rail-spacer { flex: 1; }
+.rail-btn-back:active { transform: scale(0.9); opacity: 0.75; }
 
 .zoom-level-label {
   font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  color: rgba(255,255,255,0.35);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
   text-align: center;
   line-height: 1;
   user-select: none;
+  margin: 2px 0;
 }
 
 /* Tooltips */
@@ -275,8 +258,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.85);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
   font-size: 11px;
   white-space: nowrap;
@@ -286,6 +269,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   pointer-events: none;
   z-index: 999;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .player-rail-right .rail-btn[title]:hover::after {
@@ -295,8 +279,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   left: auto;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.85);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
   font-size: 11px;
   white-space: nowrap;
@@ -306,10 +290,16 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   pointer-events: none;
   z-index: 999;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 /* ============================================================
    CONTROLES INFERIORES
+   Layout (de arriba a abajo):
+     [rewind] [REC] [forward]   ← controls-rec-row
+     [============progress============]
+     [tiempo]                   [tiempo]
+     [volumen]              [pip] [fullscreen]
    ============================================================ */
 .custom-controls {
   position: absolute;
@@ -317,7 +307,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   left: 0;
   right: 0;
   z-index: 25;
-  padding: 48px 16px 16px;
+  padding: 14px 16px 14px;
   background: linear-gradient(to top,
     rgba(0,0,0,0.88) 0%,
     rgba(0,0,0,0.55) 55%,
@@ -337,12 +327,24 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   .custom-controls { opacity: 1 !important; pointer-events: auto !important; }
 }
 
+/* ============================================================
+   FILA REC: rewind + REC + forward (centrada, encima de la barra)
+   ============================================================ */
+.controls-rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 10px;
+  min-height: 56px;
+}
+
 /* Barra de progreso */
-.progress-bar-container { margin-bottom: 12px; }
+.progress-bar-container { margin-bottom: 6px; }
 
 .progress-bar {
   height: 3px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   cursor: pointer;
   position: relative;
@@ -382,161 +384,126 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin-top: 6px;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* ============================================================
-   BOTÓN GRABAR — CENTRO INFERIOR
-   FIX MOBILE: eliminado width:auto en .recording para evitar
-   desbordamiento en pantallas pequeñas. Se usa un ancho
-   máximo controlado y flex-wrap para el contenido interno.
+   FILA INFERIOR: volumen (izq) + pip/fullscreen (der)
    ============================================================ */
-.controls-row {
-  position: relative;
+.controls-bottom-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-top: 6px;
 }
 
+.controls-left, .controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================================
+   BOTÓN GRABAR (centro) — diseño según imagen:
+   círculo rojo con borde blanco, ícono sólido,
+   durante grabación: halo pulsante + texto "REC 00:00"
+   ============================================================ */
 .record-center-btn {
-  /* Posición centrada sobre la barra */
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-
-  /* Tamaño base — cuadrado perfecto para el icono */
-  width: 52px;
-  height: 52px;
-  min-width: 52px;  /* evita colapso */
-
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
   border-radius: 50%;
-  background: rgba(231,76,60,0.22);
-  border: 2px solid rgba(231,76,60,0.6);
-  color: var(--accent);
-
+  background: var(--accent);
+  border: 3px solid #fff;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   cursor: pointer;
   font-size: 18px;
-  z-index: 10;
-
-  transition:
-    background var(--transition),
-    border-color var(--transition),
-    transform var(--transition),
-    box-shadow var(--transition),
-    width var(--transition),
-    border-radius var(--transition);
-
+  transition: background var(--transition), border-color var(--transition), transform var(--transition), box-shadow var(--transition), width var(--transition), border-radius var(--transition);
   -webkit-tap-highlight-color: transparent;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-
-  /* Importante: no overflow para que el timer no desborde */
+  -webkit-appearance: none;
+  appearance: none;
   overflow: hidden;
   white-space: nowrap;
-}
-
-.record-center-btn:hover {
-  background: rgba(231,76,60,0.35);
-  border-color: var(--accent);
-  transform: translate(-50%, -50%) scale(1.1);
-}
-
-.record-center-btn:active {
-  transform: translate(-50%, -50%) scale(0.92);
-}
-
-/* ── Estado GRABANDO ──
-   El botón se ensancha para mostrar el timer.
-   Usamos un ancho máximo fijo (nunca auto) para evitar
-   desbordamiento en móviles. */
-.record-center-btn.recording {
-  width: 100px;         /* ancho fijo en lugar de auto */
-  min-width: 100px;
-  border-radius: 26px;  /* píldora */
-
-  background: rgba(231,76,60,0.5);
-  border-color: #ff3b2b;
-  color: #fff;
-
-  flex-direction: column;
-  height: 52px;
-
-  animation: pulse-record-center 1s ease-in-out infinite;
-  box-shadow: 0 0 0 0 rgba(231,76,60,0.7);
-}
-
-/* En móviles muy estrechos (<360px) el botón se hace un poco más pequeño */
-@media (max-width: 359px) {
-  .record-center-btn.recording {
-    width: 88px;
-    min-width: 88px;
-    font-size: 15px;
-  }
-}
-
-@keyframes pulse-record-center {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.6); }
-  50%       { box-shadow: 0 0 0 10px rgba(231,76,60,0); }
+  flex-shrink: 0;
 }
 
 .record-center-btn .fa-circle { font-size: 16px; }
 .record-center-btn .fa-stop   { font-size: 14px; }
 
-/* Timer dentro del botón */
+.record-center-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 6px rgba(231, 76, 60, 0.4);
+}
+
+.record-center-btn:active { transform: scale(0.92); }
+
+.record-center-btn.recording {
+  width: auto;
+  min-width: 120px;
+  height: 48px;
+  border-radius: 24px;
+  background: var(--accent);
+  border-color: #fff;
+  color: #fff;
+  padding: 0 18px;
+  gap: 8px;
+  animation: pulse-record-center 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+}
+
+.record-center-btn.recording .fa-circle { display: none; }
+
+@keyframes pulse-record-center {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
+  50%       { box-shadow: 0 0 0 12px rgba(231, 76, 60, 0); }
+}
+
 .record-center-btn .rec-btn-timer {
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.5px;
   line-height: 1;
 }
 
-/* Fila de controles */
-.controls-left,
-.controls-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+/* ============================================================
+   BOTONES GENÉRICOS (.control-btn) — rewind, forward, pip, fullscreen, volumen
+   Iconos blancos, sin caja (estilo "fantasma")
+   ============================================================ */
 .control-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   background: transparent;
   border: none;
-  color: rgba(255,255,255,0.75);
+  color: rgba(255, 255, 255, 0.9);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 14px;
-  transition: color var(--transition), background var(--transition);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.control-btn:hover {
-  color: #fff;
-  background: rgba(255,255,255,0.1);
-}
-
-#playPauseBtn {
-  width: 42px;
-  height: 42px;
   font-size: 16px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.18);
+  transition: color var(--transition), background var(--transition), transform var(--transition);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-#playPauseBtn:hover { background: rgba(255,255,255,0.2); }
+.control-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.control-btn:active { transform: scale(0.92); }
+
+/* Rewind / forward un poco más chicos para que no compitan visualmente con REC */
+#rewindBtn, #forwardBtn {
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9);
+}
 
 /* Volumen */
 .volume-control { display: flex; align-items: center; gap: 6px; }
@@ -557,16 +524,17 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   position: absolute;
   bottom: calc(100% + 8px);
   right: 0;
-  background: rgba(10,10,14,0.95);
+  background: rgba(10, 10, 14, 0.95);
   border: 1px solid var(--border-md);
   border-radius: var(--radius);
   overflow: hidden;
   display: none;
   flex-direction: column;
   min-width: 82px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
   z-index: 100;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .speed-menu.open { display: flex; }
@@ -583,7 +551,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transition: background var(--transition), color var(--transition);
 }
 
-.speed-menu button:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.speed-menu button:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
 .speed-menu button.active { color: var(--accent); }
 
 .speed-text {
@@ -624,11 +592,12 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 .video-top-title {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255,255,255,0.88);
+  color: rgba(255, 255, 255, 0.92);
   max-width: 55%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .video-top-meta {
@@ -640,7 +609,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 .video-top-meta span {
   font-family: 'DM Mono', monospace;
   font-size: 10px;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255, 255, 255, 0.55);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -654,7 +623,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(231,76,60,0.9);
+  background: rgba(231, 76, 60, 0.9);
   color: #fff;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
@@ -666,6 +635,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   gap: 7px;
   z-index: 35;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   white-space: nowrap;
 }
 
@@ -682,7 +652,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 
 @keyframes blink-dot {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.15; }
+  50%      { opacity: 0.15; }
 }
 
 /* ============================================================
@@ -691,7 +661,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 .loading-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
   display: none;
   align-items: center;
   justify-content: center;
@@ -701,17 +671,13 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   pointer-events: none;
 }
 
-.loading-overlay.show {
-  display: flex;
-  pointer-events: auto;
-}
-
+.loading-overlay.show { display: flex; pointer-events: auto; }
 .loading-overlay.hidden { display: none; pointer-events: none; }
 
 .spinner {
   width: 30px;
   height: 30px;
-  border: 2px solid rgba(255,255,255,0.15);
+  border: 2px solid rgba(255, 255, 255, 0.15);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -732,12 +698,13 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  background: rgba(10,10,14,0.92);
+  background: rgba(10, 10, 14, 0.92);
   border: 1px solid var(--border-md);
   border-radius: 10px;
   padding: 12px 16px;
   z-index: 40;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .watermark-progress.active { display: flex; }
@@ -745,7 +712,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 .wm-bar-wrap {
   width: 100%;
   height: 3px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -772,8 +739,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   bottom: 88px;
   left: 50%;
   transform: translateX(-50%) translateY(8px);
-  background: rgba(10,10,14,0.97);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(10, 10, 14, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text);
   font-size: 13px;
   font-family: 'DM Sans', sans-serif;
@@ -786,7 +753,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   white-space: nowrap;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   max-width: 90vw;
   text-align: center;
 }
@@ -797,22 +764,38 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 /* ============================================================
-   MODAL COMPARTIR — BOTTOM SHEET
+   MODAL COMPARTIR — BOTTOM SHEET (iOS safe)
+   Cross-browser: usa SOLO la clase .open, nunca inline display
    ============================================================ */
 .mobile-share-modal {
-  display: none;
-  position: fixed !important;
+  position: fixed;
   inset: 0;
+  width: 100vw;
+  height: var(--dvh);
   z-index: 13000;
+
+  /* Estado cerrado: invisible e inerte, pero respetando iOS */
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
 }
 
-.mobile-share-modal.open { display: block !important; }
+.mobile-share-modal.open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
 
 .mobile-share-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 .mobile-share-content {
@@ -824,7 +807,18 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   border-radius: 18px 18px 0 0;
   padding: 10px 20px 36px;
   border-top: 1px solid var(--border-md);
-  box-shadow: 0 -16px 48px rgba(0,0,0,0.7);
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.7);
+  padding-bottom: max(36px, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(.4, 0, .2, 1);
+  max-height: 85vh;
+  max-height: 85dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-share-modal.open .mobile-share-content {
+  transform: translateY(0);
 }
 
 .mobile-share-content::before {
@@ -832,7 +826,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   display: block;
   width: 32px;
   height: 3px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
   margin: 0 auto 16px;
 }
@@ -841,7 +835,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   position: absolute;
   right: 16px;
   top: 14px;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
   border-radius: 50%;
   width: 28px;
@@ -852,7 +846,11 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   color: var(--muted);
   font-size: 18px;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
+
+.mobile-share-close:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
 
 .mobile-share-content h3 {
   font-size: 11px;
@@ -889,15 +887,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   justify-content: center;
   font-size: 20px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   transition: transform var(--transition);
 }
 
 .share-icon:active .share-icon-circle { transform: scale(0.88); }
 
-.si-whatsapp { background: rgba(37,211,102,0.10) !important; border-color: rgba(37,211,102,0.2) !important; color: #25d366; }
-.si-facebook  { background: rgba(24,119,242,0.10) !important; border-color: rgba(24,119,242,0.2) !important; color: #1877f2; }
-.si-twitter   { background: rgba(29,161,242,0.10) !important; border-color: rgba(29,161,242,0.2) !important; color: #1da1f2; }
+.si-whatsapp { background: rgba(37, 211, 102, 0.10) !important; border-color: rgba(37, 211, 102, 0.2) !important; color: #25d366; }
+.si-facebook  { background: rgba(24, 119, 242, 0.10) !important; border-color: rgba(24, 119, 242, 0.2) !important; color: #1877f2; }
+.si-twitter   { background: rgba(29, 161, 242, 0.10) !important; border-color: rgba(29, 161, 242, 0.2) !important; color: #1da1f2; }
 .si-download  { background: var(--accent-bg) !important; border-color: var(--accent-bd) !important; color: var(--accent); }
 
 .share-icon span { font-size: 10px; color: var(--muted); }
@@ -906,35 +904,54 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
    MODAL DE CLIPS
    ============================================================ */
 .clips-modal {
-  display: none;
-  position: fixed !important;
+  position: fixed;
   inset: 0;
+  width: 100vw;
+  height: var(--dvh);
   z-index: 13000;
+
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
 }
 
-.clips-modal.open { display: block !important; }
+.clips-modal.open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
 
 .clips-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .clips-modal-content {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0.96);
   background: #0e0e12;
   border: 1px solid var(--border-md);
   border-radius: 16px;
   width: min(480px, 92vw);
+  max-height: 80vh;
   max-height: 80dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.8);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+  transition: transform 0.28s cubic-bezier(.4, 0, .2, 1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.clips-modal.open .clips-modal-content {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .clips-modal-header {
@@ -965,7 +982,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 .clips-modal-close {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
   border-radius: 50%;
   width: 28px;
@@ -977,9 +994,11 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   font-size: 16px;
   cursor: pointer;
   transition: background var(--transition), color var(--transition);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.clips-modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+.clips-modal-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
 
 .clips-list {
   flex: 1;
@@ -988,13 +1007,14 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   display: flex;
   flex-direction: column;
   gap: 8px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .clips-list::-webkit-scrollbar { width: 4px; }
 .clips-list::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 2px; }
 
 .clip-item {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 11px 13px;
@@ -1006,7 +1026,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 
 .clip-item:hover {
   border-color: var(--border-md);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .clip-thumb {
@@ -1058,17 +1078,19 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   cursor: pointer;
   font-size: 11px;
   transition: background var(--transition), color var(--transition), border-color var(--transition);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .clip-action-btn:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-md);
   color: var(--text);
 }
 
 .clip-action-btn.danger:hover {
-  background: rgba(231,76,60,0.12);
-  border-color: rgba(231,76,60,0.3);
+  background: rgba(231, 76, 60, 0.12);
+  border-color: rgba(231, 76, 60, 0.3);
   color: var(--accent);
 }
 
@@ -1088,16 +1110,18 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border-md);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
   transition: background var(--transition), color var(--transition), border-color var(--transition);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.clips-footer-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.clips-footer-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
 
 .clips-footer-btn.primary {
   background: var(--accent-bg);
@@ -1106,8 +1130,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 .clips-footer-btn.primary:hover {
-  background: rgba(231,76,60,0.22);
-  border-color: rgba(231,76,60,0.5);
+  background: rgba(231, 76, 60, 0.22);
+  border-color: rgba(231, 76, 60, 0.5);
   color: #fff;
 }
 
@@ -1132,7 +1156,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100dvh;
+  height: var(--dvh);
   padding: 24px;
 }
 
@@ -1158,72 +1182,65 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 /* ============================================================
    RESPONSIVE — MOBILE
    ============================================================ */
-
-/* Pantallas hasta 600px */
 @media (max-width: 600px) {
   :root { --btn-size: 40px; }
 
-  /* Rieles más delgados para no comerse espacio de video */
   .player-rail {
     width: 48px;
     gap: 8px;
     padding: 16px 0;
   }
 
-  /* Offsets reducidos para pantallas más pequeñas */
   .player-rail-left  { left: 4px; }
   .player-rail-right { right: 4px; }
 
-  /* Barra superior con padding ajustado al riel más delgado */
-  .video-top-bar {
-    padding: 10px 56px;
-  }
-
+  .video-top-bar { padding: 10px 56px; }
   .video-top-meta { display: none; }
 
-  /* Ocultar PiP en móvil */
   .controls-right #pipBtn { display: none !important; }
-
-  /* Slider de volumen más corto en móvil */
   .volume-slider { width: 50px; }
 
-  /* Botón grabar: ajustar tamaño base */
+  .controls-rec-row { gap: 16px; min-height: 50px; }
+
   .record-center-btn {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
     font-size: 16px;
   }
 
   .record-center-btn.recording {
-    width: 92px;
-    min-width: 92px;
-    height: 48px;
-    border-radius: 24px;
+    width: auto;
+    min-width: 110px;
+    height: 46px;
+    border-radius: 23px;
+    padding: 0 14px;
   }
 
-  /* Controles inferiores con menos padding lateral */
-  .custom-controls {
-    padding: 44px 12px 14px;
-  }
+  #rewindBtn, #forwardBtn { width: 32px; height: 32px; font-size: 14px; }
+
+  .custom-controls { padding: 12px 12px 12px; }
 
   .mobile-share-grid { gap: 8px; }
   .share-icon-circle { width: 46px; height: 46px; font-size: 18px; }
 
-  /* Modal de clips ocupa bottom sheet en móvil */
   .clips-modal-content {
     left: 0;
     right: 0;
     bottom: 0;
     top: auto;
-    transform: none;
+    transform: translateY(100%);
     width: 100%;
     border-radius: 18px 18px 0 0;
+    max-height: 85vh;
     max-height: 85dvh;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .clips-modal.open .clips-modal-content {
+    transform: translateY(0);
   }
 }
 
-/* Pantallas muy pequeñas (≤360px) */
 @media (max-width: 360px) {
   :root { --btn-size: 36px; }
 
@@ -1233,46 +1250,39 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 
   .video-top-bar { padding: 8px 48px; }
 
+  .controls-rec-row { gap: 12px; min-height: 46px; }
+
   .record-center-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
   }
-
   .record-center-btn.recording {
-    width: 84px;
-    min-width: 84px;
-    height: 44px;
+    min-width: 100px;
+    height: 42px;
+    border-radius: 21px;
+    padding: 0 12px;
   }
 
-  /* Ocultar slider de volumen — solo icono */
   .volume-slider { display: none; }
-
-  .controls-left { gap: 4px; }
-  .controls-right { gap: 4px; }
+  .controls-left, .controls-right { gap: 4px; }
 }
 
-/* Landscape con altura reducida */
 @media (max-height: 480px) and (orientation: landscape) {
   :root { --btn-size: 34px; }
 
   .player-rail { gap: 6px; padding: 8px 0; }
   .custom-controls { padding: 32px 14px 10px; }
 
-  .record-center-btn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-  }
-
+  .record-center-btn { width: 44px; height: 44px; min-width: 44px; }
   .record-center-btn.recording {
-    width: 86px;
-    min-width: 86px;
-    height: 42px;
-    border-radius: 21px;
+    width: auto;
+    min-width: 100px;
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 12px;
   }
 
-  /* En landscape el indicador REC puede tapar el contenido */
   .rec-indicator { top: 8px; font-size: 10px; padding: 4px 10px; }
 }
 

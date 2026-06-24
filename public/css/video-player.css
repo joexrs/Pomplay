@@ -1,6 +1,4 @@
-/* ===================================
-   REPRODUCTOR DE VIDEO PERSONALIZADO
-   =================================== */
+
 
 .video-player-wrap {
   position: relative;
@@ -10,14 +8,24 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.video-player {
-  width: 100%;
-  height: auto;
-  display: block;
-  max-height: 70vh;
+.video-section {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: #000;
 }
 
-/* Controles personalizados */
+.video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ============================================================
+   CONTROLES PERSONALIZADOS
+   ============================================================ */
 .custom-controls {
   position: absolute;
   bottom: 0;
@@ -28,27 +36,28 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 10;
+  pointer-events: none;
 }
 
 .video-player-wrap:hover .custom-controls,
 .custom-controls.show {
   opacity: 1;
+  pointer-events: auto;
 }
 
-/* Barra de progreso */
-.progress-bar-container {
-  margin-bottom: 12px;
-}
+.progress-bar-container { margin-bottom: 6px; }
 
 .progress-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.3);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   cursor: pointer;
   position: relative;
-  margin-bottom: 8px;
+  transition: height 0.15s ease;
 }
+
+.progress-bar:hover { height: 5px; }
 
 .progress-filled {
   height: 100%;
@@ -57,76 +66,169 @@
   width: 0%;
   transition: width 0.1s linear;
   position: relative;
+  pointer-events: none;
 }
 
 .progress-filled::after {
   content: '';
   position: absolute;
-  right: -6px;
+  right: -5px;
   top: 50%;
   transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  background: var(--accent, #e74c3c);
+  width: 11px;
+  height: 11px;
+  background: #fff;
   border-radius: 50%;
   opacity: 0;
   transition: opacity 0.2s;
+  box-shadow: 0 0 0 2px var(--accent, #e74c3c);
 }
 
-.progress-bar:hover .progress-filled::after {
-  opacity: 1;
-}
+.progress-bar:hover .progress-filled::after { opacity: 1; }
 
 .time-display {
   display: flex;
   justify-content: space-between;
-  color: #fff;
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
   font-weight: 500;
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
 }
 
-/* Fila de controles */
-.controls-row {
+/* Fila de controles — estructura nueva */
+.controls-rec-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 10px;
+  min-height: 56px;
+}
+
+.controls-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .controls-left,
 .controls-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
-/* Botones de control */
+/* ============================================================
+   BOTONES — estilo icono blanco "fantasma" (sin caja)
+   ============================================================ */
 .control-btn {
   background: transparent;
   border: none;
-  color: #fff;
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
   cursor: pointer;
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 36px;
+  min-width: 40px;
+  height: 40px;
+  -webkit-tap-highlight-color: transparent;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .control-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transform: scale(1.08);
 }
 
-.control-btn:active {
-  transform: scale(0.95);
+.control-btn:active { transform: scale(0.92); }
+
+#rewindBtn, #forwardBtn {
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
 }
 
-/* Control de volumen */
+/* ============================================================
+   BOTÓN GRABAR (centro) — diseño según imagen:
+   - círculo rojo con borde blanco
+   - ícono sólido
+   - durante grabación: halo pulsante + texto "REC HH:MM"
+   ============================================================ */
+.record-center-btn {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  
+  background: var(--accent, #e74c3c);
+
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.25);
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.record-center-btn .fa-circle { font-size: 16px; }
+
+.record-center-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 6px rgba(231, 76, 60, 0.4);
+}
+
+.record-center-btn:active { transform: scale(0.92); }
+
+
+
+.record-center-btn.recording .fa-circle { display: none; }
+
+.record-center-btn .rec-btn-timer {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.record-center-btn.recording .fa-circle { display: none; }
+
+.record-center-btn .rec-btn-timer {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #fff;
+  line-height: 1;
+}
+
+@keyframes pulse-record {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
+  50%      { box-shadow: 0 0 0 12px rgba(231, 76, 60, 0); }
+}
+
+/* ============================================================
+   VOLUMEN
+   ============================================================ */
 .volume-control {
   display: flex;
   align-items: center;
@@ -145,10 +247,7 @@
   outline: none;
 }
 
-.volume-control:hover .volume-slider {
-  width: 80px;
-  opacity: 1;
-}
+.volume-control:hover .volume-slider { width: 80px; opacity: 1; }
 
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -168,45 +267,18 @@
   border: none;
 }
 
-/* Control de velocidad */
-.speed-control {
-  position: relative;
-}
-
-/* Control de zoom */
-.zoom-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 8px;
-}
-
-.zoom-level {
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  min-width: 45px;
-  text-align: center;
-  user-select: none;
-}
-
-.zoom-control .control-btn {
-  min-width: 32px;
-  height: 32px;
-  font-size: 16px;
-}
-
-.speed-control {
-  position: relative;
-}
+/* ============================================================
+   VELOCIDAD
+   ============================================================ */
+.speed-control { position: relative; }
 
 .speed-text {
   font-size: 14px;
   font-weight: 600;
   min-width: 30px;
   text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'DM Mono', monospace;
 }
 
 .speed-menu {
@@ -222,11 +294,10 @@
   gap: 4px;
   min-width: 80px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
 }
 
-.speed-menu.show {
-  display: flex;
-}
+.speed-menu.show { display: flex; }
 
 .speed-menu button {
   background: transparent;
@@ -240,32 +311,24 @@
   transition: background 0.2s;
 }
 
-.speed-menu button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
+.speed-menu button:hover { background: rgba(255, 255, 255, 0.1); }
+.speed-menu button.active { background: rgba(247, 243, 242, 0.15); font-weight: 600; color: var(--accent, #e74c3c); }
 
-.speed-menu button.active {
-  background: var(--accent, #e74c3c);
-  font-weight: 600;
-}
-
-/* Overlay de carga */
+/* ============================================================
+   LOADING
+   ============================================================ */
 .loading-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.7);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 5;
+  pointer-events: none;
 }
 
-.loading-overlay.show {
-  display: flex;
-}
+.loading-overlay.show { display: flex; pointer-events: auto; }
 
 .spinner {
   width: 50px;
@@ -276,90 +339,190 @@
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Responsive */
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
 @media (max-width: 768px) {
-  .custom-controls {
-    padding: 15px 10px 10px;
-  }
-  
+  .custom-controls { padding: 12px 12px 12px; }
+
   .control-btn {
-    font-size: 16px;
-    min-width: 32px;
-    height: 32px;
+    font-size: 15px;
+    min-width: 36px;
+    height: 36px;
     padding: 6px;
   }
-  
+
   .controls-left,
-  .controls-right {
-    gap: 4px;
+  .controls-right { gap: 4px; }
+
+  .controls-rec-row { gap: 16px; min-height: 50px; }
+
+  .record-center-btn {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    font-size: 16px;
   }
-  
-  .volume-control:hover .volume-slider {
-    width: 60px;
+
+  .record-center-btn.recording {
+    height: 44px;
+    min-width: 110px;
+    border-radius: 22px;
+    padding: 0 14px;
   }
-  
-  .time-display {
-    font-size: 11px;
-  }
-  
-  /* Asegurar que los botones de PIP y fullscreen sean visibles */
+
+  .volume-control:hover .volume-slider { width: 60px; }
+  .time-display { font-size: 11px; }
+
   #pipBtn,
-  #fullscreenBtn {
-    min-width: 40px;
-    height: 40px;
-    font-size: 18px;
-  }
+  #fullscreenBtn { min-width: 40px; height: 40px; font-size: 18px; }
 }
 
 @media (max-width: 480px) {
-  .controls-row {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
+  .controls-bottom-row { gap: 8px; }
+  .controls-left, .controls-right { gap: 6px; }
+  .controls-rec-row { gap: 14px; min-height: 48px; }
+
+  .control-btn { min-width: 40px; height: 40px; font-size: 16px; }
+
+  .record-center-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    font-size: 14px;
+    border-width: 2.5px;
   }
-  
-  .controls-left,
-  .controls-right {
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
+
+  .record-center-btn.recording {
+    width: auto;
+    min-width: 100px;
+    height: 42px;
+    border-radius: 21px;
   }
-  
-  .control-btn {
-    min-width: 44px;
-    height: 44px;
-    font-size: 18px;
-  }
-  
-  /* Mostrar todos los botones en móvil */
-  #rewindBtn,
-  #forwardBtn,
-  .volume-control,
-  .zoom-control,
-  .speed-control,
-  #pipBtn,
-  #fullscreenBtn {
+
+  #rewindBtn, #forwardBtn, .volume-control, .speed-control, #fullscreenBtn {
     display: flex !important;
   }
-  
-  /* Ajustar el control de volumen para móvil */
-  .volume-slider {
-    width: 60px;
-    opacity: 1;
+  #pipBtn { display: none !important; }
+
+  .volume-slider { width: 50px; opacity: 1; }
+}
+
+@media (max-width: 360px) {
+  .controls-rec-row { gap: 12px; min-height: 46px; }
+  .control-btn { min-width: 36px; height: 36px; font-size: 14px; }
+
+  .record-center-btn {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    font-size: 13px;
   }
-  
-  /* Ajustar zoom control para móvil */
-  .zoom-control {
-    padding: 4px 6px;
-  }
-  
-  .zoom-level {
+  .record-center-btn.recording {
+    min-width: 90px;
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 12px;
     font-size: 12px;
-    min-width: 40px;
   }
+
+  .volume-slider { display: none; }
+}
+
+/* ============================================================
+   OVERLAY DE PROGRESO — CLIP SIENDO PROCESADO EN EL SERVIDOR
+   ============================================================ */
+#clipProgressOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 99999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+#clipProgressOverlay.active {
+  display: flex;
+  animation: fadeInOverlay 0.25s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.clip-progress-inner {
+  background: rgba(18, 18, 30, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 36px 40px;
+  min-width: 280px;
+  max-width: 360px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(231, 76, 60, 0.15);
+}
+
+.clip-progress-spinner {
+  font-size: 36px;
+  color: var(--accent, #e74c3c);
+}
+
+.clip-progress-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.clip-progress-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.clip-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #ff6b5b);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.4s ease;
+}
+
+.clip-progress-pct {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ============================================================
+   CLIPS LIST — URL preview y botón compartir
+   ============================================================ */
+.clip-url-preview {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  margin-top: 2px;
+}
+
+.clip-action-btn[data-action="share"] { color: rgba(255, 255, 255, 0.7); }
+.clip-action-btn[data-action="share"]:hover {
+  color: #fff;
+  background: rgba(46, 213, 115, 0.15);
 }

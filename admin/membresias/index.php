@@ -75,7 +75,7 @@ try {
         $iconos = [
           'BASICA' => ['icon' => 'fa-star', 'color' => '#60a5fa'],
           'PREMIUM' => ['icon' => 'fa-gem', 'color' => '#A855F7'],
-          'ANUAL' => ['icon' => 'fa-crown', 'color' => '#ec4237']
+          'ANUAL' => ['icon' => 'fa-crown', 'color' => '#EE3E46']
         ];
         
         foreach ($precios as $precio): 
@@ -180,9 +180,9 @@ try {
 }
 
 .alert-error-membership {
-  background: rgba(236,66,55,.1);
-  border: 1px solid rgba(236,66,55,.3);
-  color: #ec4237;
+  background: rgba(238,62,70,.1);
+  border: 1px solid rgba(238,62,70,.3);
+  color: #EE3E46;
 }
 
 /* Container Principal */
@@ -206,7 +206,7 @@ try {
 .membership-header-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, rgba(236,66,55,0.2), rgba(236,66,55,0.1));
+  background: linear-gradient(135deg, rgba(238,62,70,0.2), rgba(238,62,70,0.1));
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -216,7 +216,7 @@ try {
 
 .membership-header-icon i {
   font-size: 2rem;
-  color: #ec4237;
+  color: #EE3E46;
 }
 
 .membership-header-text h2 {
@@ -402,7 +402,7 @@ try {
 }
 
 .modal-content-membership {
-  background: linear-gradient(135deg, #11132d 0%, #11132d 100%);
+  background: linear-gradient(135deg, #1e1b3c 0%, #2d1b3d 100%);
   border-radius: 24px;
   max-width: 500px;
   width: 100%;
@@ -451,17 +451,17 @@ try {
   width: 80px;
   height: 80px;
   margin: 0 auto 24px;
-  background: linear-gradient(135deg, rgba(236,66,55,0.25), rgba(236,66,55,0.1));
+  background: linear-gradient(135deg, rgba(238,62,70,0.25), rgba(238,62,70,0.1));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 32px rgba(236,66,55,0.3);
+  box-shadow: 0 8px 32px rgba(238,62,70,0.3);
 }
 
 .modal-icon-membership i {
   font-size: 2.2rem;
-  color: #ec4237;
+  color: #EE3E46;
 }
 
 .modal-header-membership h2 {
@@ -494,7 +494,7 @@ try {
 }
 
 .form-label-membership i {
-  color: #ec4237;
+  color: #EE3E46;
   font-size: 0.9rem;
 }
 
@@ -519,9 +519,9 @@ try {
 
 .form-input-membership:focus {
   outline: none;
-  border-color: #ec4237;
+  border-color: #EE3E46;
   background: rgba(255,255,255,0.08);
-  box-shadow: 0 0 0 4px rgba(236,66,55,0.15);
+  box-shadow: 0 0 0 4px rgba(238,62,70,0.15);
 }
 
 .modal-actions-membership {
@@ -560,15 +560,15 @@ try {
 }
 
 .btn-save-membership {
-  background: linear-gradient(135deg, #ec4237, #d63a2f);
+  background: linear-gradient(135deg, #EE3E46, #CC2E36);
   color: #fff;
   border: 2px solid transparent;
-  box-shadow: 0 4px 20px rgba(236,66,55,0.3);
+  box-shadow: 0 4px 20px rgba(238,62,70,0.3);
 }
 
 .btn-save-membership:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(236,66,55,0.5);
+  box-shadow: 0 8px 30px rgba(238,62,70,0.5);
 }
 
 .btn-save-membership:active,

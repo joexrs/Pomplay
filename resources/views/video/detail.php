@@ -2,8 +2,49 @@
 
 <?php if ($video): ?>
 <?php $playableVideoUrl = $videoUrl ?? ($video['video_url'] ?? ''); ?>
+<?php $pinLongitud = 6; // Longitud esperada del PIN ?>
 
-<!-- Escape del layout padre — debe ir ANTES de cualquier otro CSS -->
+<?php if (!empty($requiresPin) && empty($hasAccess)): ?>
+<!-- ══ OVERLAY DE PIN — bloquea el video hasta verificar ══ -->
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-pin.css?v=1.0" />
+
+<div class="pin-overlay" id="pinOverlay"
+     data-video-code="<?= htmlspecialchars($codigoVideo) ?>"
+     data-pin-length="<?= $pinLongitud ?>">
+  <div class="pin-card">
+    <div class="pin-icon-wrap">
+      <i class="fas fa-lock"></i>
+    </div>
+    <h2 class="pin-title">Video Privado</h2>
+    <p class="pin-subtitle">
+      Este video requiere un código de acceso.<br>
+      Solicítalo al propietario del local.
+    </p>
+
+    <div class="pin-digits-wrap" id="pinDigitsWrap">
+      <?php for ($i = 0; $i < $pinLongitud; $i++): ?>
+        <input type="number" class="pin-digit" maxlength="1" min="0" max="9"
+               inputmode="numeric" pattern="\d" autocomplete="off"
+               aria-label="Dígito <?= $i + 1 ?>">
+      <?php endfor; ?>
+    </div>
+
+    <button class="pin-submit-btn" id="pinSubmitBtn" disabled>
+      <span class="btn-text"><i class="fas fa-unlock-alt"></i> Verificar código</span>
+      <div class="spinner-sm" style="display:none;"></div>
+    </button>
+
+    <div class="pin-message" id="pinMessage"></div>
+    <div class="pin-attempts" id="pinAttempts"></div>
+
+    <a href="<?= $baseUrl ?>/index.php" class="pin-back-link">
+      <i class="fas fa-arrow-left"></i> Volver al inicio
+    </a>
+  </div>
+</div>
+<?php endif; ?>
+
+
 <style>
   html, body {
     overflow: hidden !important;
@@ -13,8 +54,9 @@
     height: 100% !important;
     max-width: 100% !important;
     background: #000 !important;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
   }
-  /* Anular contenedores típicos de layouts PHP/Bootstrap/Tailwind */
   .container, .container-fluid, .container-xl, .container-lg,
   .wrapper, .page-wrapper, .main-wrapper, .content-wrapper,
   .site-wrapper, .layout-wrapper, .main-content, .page-content,
@@ -33,6 +75,7 @@
     position: fixed !important;
     inset: 0 !important;
     width: 100vw !important;
+    height: 100vh !important;
     height: 100dvh !important;
     max-width: 100vw !important;
     z-index: 9000 !important;
@@ -40,26 +83,27 @@
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
+    -webkit-overflow-scrolling: touch;
   }
 </style>
 
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=2.0" />
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=2.0" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=4.0" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=3.0" />
 
 <div class="detail-content">
 
-  <!-- ══ SECCIÓN DE VIDEO — ocupa toda la pantalla ══ -->
+  <!-- SECCIÓN DE VIDEO -->
   <main class="video-section reveal" aria-label="Reproductor de video">
 
     <div class="video-player-wrap" id="videoPlayerWrap">
 
-      <!-- INDICADOR DE GRABACIÓN (flota centrado arriba) -->
+      <!-- INDICADOR DE GRABACIÓN -->
       <div class="rec-indicator" id="recIndicator" aria-live="polite">
         <div class="rec-dot"></div>
         REC <span id="recTimer">00:00</span>
       </div>
 
-      <!-- BARRA SUPERIOR (título + metadatos) -->
+      <!-- BARRA SUPERIOR  -->
       <div class="video-top-bar">
         <span class="video-top-title">
           <?= htmlspecialchars($video['descripcion']) ?>
@@ -71,7 +115,7 @@
         </div>
       </div>
 
-      <!-- RIEL IZQUIERDO — overlay sobre el video -->
+      <!-- RIEL IZQUIERDO  -->
       <aside class="player-rail player-rail-left" aria-label="Controles izquierdos">
 
         <!-- Volver -->
@@ -82,25 +126,20 @@
           <i class="fas fa-arrow-left"></i>
         </a>
 
-        <div class="rail-spacer"></div>
-
-        <!-- Zoom -->
-        <button class="rail-btn" id="zoomOutBtn" title="Reducir zoom" aria-label="Reducir zoom">
-          <i class="fas fa-search-minus"></i>
+        <!-- Retroceder 10s -->
+        <button class="rail-btn" id="rewindBtn" title="Retroceder 10s" aria-label="Retroceder 10 segundos">
+          <i class="fas fa-undo"></i>
         </button>
-        <span class="zoom-level-label" id="zoomLevel">100%</span>
-        <button class="rail-btn" id="zoomInBtn" title="Aumentar zoom" aria-label="Aumentar zoom">
-          <i class="fas fa-search-plus"></i>
-        </button>
-
-        <div class="rail-spacer"></div>
 
       </aside>
 
-      <!-- RIEL DERECHO — overlay sobre el video -->
+      <!-- RIEL DERECHO -->
       <aside class="player-rail player-rail-right" aria-label="Controles derechos">
 
-        <div class="rail-spacer"></div>
+        <!-- Adelantar 10s -->
+        <button class="rail-btn" id="forwardBtn" title="Adelantar 10s" aria-label="Adelantar 10 segundos">
+          <i class="fas fa-redo"></i>
+        </button>
 
         <!-- Pantalla completa -->
         <button class="rail-btn" id="railFullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
@@ -126,13 +165,7 @@
           <i class="fas fa-share-alt"></i>
         </button>
 
-        <!-- Descargar con marca de agua -->
-        <button class="rail-btn"
-                id="downloadFullBtn"
-                title="Descargar video"
-                aria-label="Descargar video completo con marca de agua">
-          <i class="fas fa-download"></i>
-        </button>
+    
 
         <!-- Velocidad -->
         <div class="speed-control">
@@ -155,13 +188,30 @@
       </aside>
 
       <!-- VIDEO -->
-      <video id="videoPlayer" class="video-player" preload="metadata" crossorigin="anonymous">
-        <source src="<?= htmlspecialchars($playableVideoUrl) ?>" type="video/mp4" />
+      <video id="videoPlayer" class="video-player" preload="metadata" crossorigin="anonymous" playsinline webkit-playsinline>
+        <?php if (empty($requiresPin) || !empty($hasAccess)): ?>
+          <source src="<?= htmlspecialchars($playableVideoUrl) ?>" type="video/mp4" />
+        <?php else: ?>
+          <!-- Fuente bloqueada hasta verificar PIN -->
+          <source src="" type="video/mp4" data-src="<?= htmlspecialchars($playableVideoUrl) ?>" />
+        <?php endif; ?>
         Tu navegador no soporta videos HTML5.
       </video>
 
       <!-- CONTROLES INFERIORES -->
       <div class="custom-controls" id="videoControls">
+
+        <!-- FILA 1: botón de grabación centrado -->
+        <div class="controls-rec-row">
+          <button class="record-center-btn"
+                  id="recordBtn"
+                  title="Grabar clip"
+                  aria-label="Grabar clip de video">
+            <i class="fas fa-circle"></i>
+          </button>
+        </div>
+
+        <!-- FILA 2: barra de progreso + tiempo -->
         <div class="progress-bar-container">
           <div class="progress-bar" id="progressBar">
             <div class="progress-filled" id="progressFilled"></div>
@@ -172,51 +222,9 @@
           </div>
         </div>
 
-        <div class="controls-row">
-          <!-- BOTÓN GRABAR — centro inferior -->
-          <button class="record-center-btn"
-                  id="recordBtn"
-                  title="Grabar clip"
-                  aria-label="Grabar clip de video">
-            <i class="fas fa-circle"></i>
-          </button>
-
-          <div class="controls-left">
-            <button class="control-btn" id="playPauseBtn" title="Reproducir/Pausar" aria-label="Reproducir">
-              <i class="fas fa-play"></i>
-            </button>
-            <button class="control-btn" id="rewindBtn" title="Retroceder 10s" aria-label="Retroceder 10 segundos">
-              <i class="fas fa-backward"></i>
-            </button>
-            <button class="control-btn" id="forwardBtn" title="Adelantar 10s" aria-label="Adelantar 10 segundos">
-              <i class="fas fa-forward"></i>
-            </button>
-            <div class="volume-control">
-              <button class="control-btn" id="volumeBtn" aria-label="Silenciar">
-                <i class="fas fa-volume-up"></i>
-              </button>
-              <input type="range" id="volumeSlider" min="0" max="100" value="100"
-                     class="volume-slider" aria-label="Volumen">
-            </div>
-          </div>
-          <div class="controls-right">
-            <button class="control-btn" id="pipBtn" title="Picture-in-Picture" aria-label="Ventana flotante">
-              <i class="fas fa-external-link-alt"></i>
-            </button>
-            <button class="control-btn" id="fullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
-              <i class="fas fa-expand"></i>
-            </button>
-          </div>
-        </div>
       </div>
 
-      <!-- PROGRESS MARCA DE AGUA -->
-      <div class="watermark-progress" id="wmProgress">
-        <div class="wm-bar-wrap">
-          <div class="wm-bar-fill" id="wmBarFill"></div>
-        </div>
-        <span class="wm-label" id="wmProgressLabel">Procesando…</span>
-      </div>
+     
 
       <!-- LOADING -->
       <div class="loading-overlay" id="loadingOverlay">
@@ -229,31 +237,31 @@
 </div><!-- /.detail-content -->
 
 
-<!-- ══ MODAL COMPARTIR ══ -->
+<!-- MODAL COMPARTIR -->
 <div id="mobileShareModal" class="mobile-share-modal" aria-hidden="true"
      role="dialog" aria-modal="true" aria-label="Compartir video">
-  <div class="mobile-share-backdrop" data-action="close"></div>
+  <div class="mobile-share-backdrop" data-action="close" aria-label="Cerrar modal"></div>
   <div class="mobile-share-content">
     <button class="mobile-share-close" data-action="close" aria-label="Cerrar">×</button>
     <h3>Compartir</h3>
     <div class="mobile-share-grid">
 
       <a class="share-icon"
-         href="https://api.whatsapp.com/send?text=<?= urlencode('Mira este video: ' . $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $baseUrl . '/video/' . $codigoVideo) ?>"
+         href="https://api.whatsapp.com/send?text=<?= urlencode('Mira este video: ' . ($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . $baseUrl . '/video/' . $codigoVideo) ?>"
          target="_blank" rel="noopener">
         <div class="share-icon-circle si-whatsapp"><i class="fab fa-whatsapp"></i></div>
         <span>WhatsApp</span>
       </a>
 
       <a class="share-icon"
-         href="https://www.facebook.com/sharer/sharer.php?u=<?= urlencode($_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $baseUrl . '/video/' . $codigoVideo) ?>"
+         href="https://www.facebook.com/sharer/sharer.php?u=<?= urlencode(($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . $baseUrl . '/video/' . $codigoVideo) ?>"
          target="_blank" rel="noopener">
         <div class="share-icon-circle si-facebook"><i class="fab fa-facebook-f"></i></div>
         <span>Facebook</span>
       </a>
 
       <a class="share-icon"
-         href="https://twitter.com/intent/tweet?url=<?= urlencode($_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $baseUrl . '/video/' . $codigoVideo) ?>"
+         href="https://twitter.com/intent/tweet?url=<?= urlencode(($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . $baseUrl . '/video/' . $codigoVideo) ?>"
          target="_blank" rel="noopener">
         <div class="share-icon-circle si-twitter"><i class="fab fa-twitter"></i></div>
         <span>Twitter</span>
@@ -272,7 +280,7 @@
 <!-- ══ MODAL CLIPS ══ -->
 <div id="clipsModal" class="clips-modal" aria-hidden="true"
      role="dialog" aria-modal="true" aria-label="Mis clips grabados">
-  <div class="clips-modal-backdrop"></div>
+  <div class="clips-modal-backdrop" data-action="close-clips" aria-label="Cerrar modal"></div>
   <div class="clips-modal-content">
 
     <div class="clips-modal-header">
@@ -281,7 +289,7 @@
         Mis clips
         <span id="clipsCountLabel">0</span>
       </h3>
-      <button class="clips-modal-close" aria-label="Cerrar">×</button>
+      <button class="clips-modal-close" data-action="close-clips" aria-label="Cerrar">×</button>
     </div>
 
     <div class="clips-list" id="clipsList"></div>
@@ -299,23 +307,106 @@
 </div>
 
 
+<!-- ══ MODAL PROCESAMIENTO CLIP ══ -->
+<div id="clipProcessingModal" class="clip-proc-modal" aria-hidden="true"
+     role="dialog" aria-modal="true" aria-label="Procesando clip">
+  <div class="clip-proc-backdrop"></div>
+  <div class="clip-proc-content">
+    <div class="clip-proc-icon-wrap" id="clipProcIconWrap">
+      <div class="spinner"></div>
+    </div>
+    <div class="clip-proc-title" id="clipProcTitle">Procesando video…</div>
+    <div class="clip-proc-sub" id="clipProcSub">Esto puede tomar unos segundos</div>
+    <div class="clip-proc-bar-wrap">
+      <div class="clip-proc-bar-fill" id="clipProcBarFill"></div>
+    </div>
+  </div>
+</div>
+
+
 <script>
 (function(){
   'use strict';
-  // Botón descargar en modal compartir → redirige a descarga con watermark
-  const shareDownBtn = document.getElementById('shareDownloadBtn');
+
+  // ── Helpers para abrir/cerrar modales de forma cross-browser (iOS safe) ──
+  function openModal(id){
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    // Bloquear scroll del body en iOS
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  }
+  function closeModal(id){
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+  }
+
+  // Exponer helpers para video-player.js
+  window.POMPLAY_modal = { open: openModal, close: closeModal };
+
+  // Botón descargar en modal compartir → activa la descarga directa del video
+  var shareDownBtn = document.getElementById('shareDownloadBtn');
   if (shareDownBtn) {
     shareDownBtn.addEventListener('click', function(e){
       e.preventDefault();
-      const modal = document.getElementById('mobileShareModal');
-      if (modal) {
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-        setTimeout(() => { modal.style.display = ''; }, 50);
-      }
+      e.stopPropagation();
+      closeModal('mobileShareModal');
       document.getElementById('downloadFullBtn')?.click();
     });
   }
+
+  // Cerrar modal share al tocar backdrop o X
+  document.querySelectorAll('#mobileShareModal [data-action="close"]').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal('mobileShareModal');
+    });
+  });
+
+  // Cerrar modal clips al tocar backdrop o X
+  document.querySelectorAll('#clipsModal [data-action="close-clips"]').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal('clipsModal');
+    });
+  });
+
+  // Click en el botón compartir del riel
+  var shareTrigger = document.getElementById('shareMainTrigger');
+  if (shareTrigger) {
+    shareTrigger.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      openModal('mobileShareModal');
+    });
+  }
+
+  // Click en el botón clips
+  var clipsTrigger = document.getElementById('clipsBtn');
+  if (clipsTrigger) {
+    clipsTrigger.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      openModal('clipsModal');
+      if (typeof renderClipsList === 'function') renderClipsList();
+    });
+  }
+
+  // ESC para cerrar
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      closeModal('mobileShareModal');
+      closeModal('clipsModal');
+    }
+  });
 })();
 </script>
 
@@ -337,7 +428,13 @@
 <?php endif; ?>
 
 <script>window.POMPLAY_BASE = '<?= $baseUrl ?>';</script>
-<script src="<?= $baseUrl ?>/public/js/video-player.js?v=2.7"></script>
-<script src="<?= $baseUrl ?>/public/js/shared-modal.js?v=1.0"></script>
+<script>
+// Pasar cámaras disponibles al JavaScript
+window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
+</script>
+<script src="<?= $baseUrl ?>/public/js/video-player.js?v=4.0"></script>
+<?php if (!empty($requiresPin) && empty($hasAccess)): ?>
+<script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.0"></script>
+<?php endif; ?>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

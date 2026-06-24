@@ -7,6 +7,10 @@
     
     <!-- Lado Izquierdo: Animación y Texto -->
     <div class="login-graphic reveal">
+      <div class="floating-bg">
+        <div class="float-circle fc-1"></div>
+        <div class="float-circle fc-2"></div>
+      </div>
       <div class="login-text-content">
         <h1>Gestión<br><span style="color:var(--color-brand)">Local Deportiva</span></h1>
         <p>Accede al panel de control de Pomplay para gestionar grabaciones y las canchas afiliadas.</p>
@@ -19,7 +23,7 @@
         <h2>Panel de <span style="color:var(--color-brand)">Administración</span></h2>
         
         <?php if (!empty($error)): ?>
-          <div style="background: rgba(236, 66, 55, 0.2); border: 1px solid var(--color-brand); padding: 12px; border-radius: 8px; margin-bottom: 20px; color: #fff; font-size: 0.85rem; text-align: left;">
+          <div style="background: rgba(238, 62, 70, 0.2); border: 1px solid var(--color-brand); padding: 12px; border-radius: 8px; margin-bottom: 20px; color: #fff; font-size: 0.85rem; text-align: left;">
             <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
           </div>
         <?php endif; ?>

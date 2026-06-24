@@ -96,6 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . $baseUrl . '/admin/locales/add.php');
             exit;
         }
+
+        // Actualizar es_privado si fue marcado
+        $esPrivado = isset($_POST['es_privado']) ? 1 : 0;
+        if ($esPrivado) {
+            $stmtPriv = $pdo->prepare("UPDATE locales SET es_privado = :es_privado WHERE id_local = :id_local");
+            $stmtPriv->execute([':es_privado' => $esPrivado, ':id_local' => $localId]);
+        }
         
         $propietarioId = null;
         $userId = null;

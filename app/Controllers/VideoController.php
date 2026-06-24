@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Controllers\Api\VideoPinController;
 use App\Core\View;
 use App\Repositories\VideoRepository;
 
@@ -17,6 +18,9 @@ final class VideoController
         $video = null;
         $videoUrl = '';
         $error = null;
+        $requiresPin = false;
+        $hasAccess = false;
+        $cameras = [];
 
         if ($codigo === '') {
             $error = 'No se ha proporcionado un codigo de video.';
@@ -29,6 +33,35 @@ final class VideoController
                 $videoUrl = $this->resolvePlayableVideoUrl($originalVideoUrl, $context['baseUrl']);
                 $video['video_url_original'] = $originalVideoUrl;
                 $video['video_url'] = $videoUrl;
+
+                // Verificar si el video es privado
+                $esPrivado = (bool) ($video['es_privado'] ?? false);
+                if ($esPrivado) {
+                    $requiresPin = true;
+                    $hasAccess = VideoPinController::hasTemporaryAccess($codigo);
+                }
+
+                // Obtener todas las cámaras disponibles para esta sesión de video (misma cancha, fecha, hora)
+                $codigoCancha = $video['codigo_cancha'] ?? '';
+                $fechaPartido = $video['fecha_partido'] ?? '';
+                $horaPartido = $video['hora_partido'] ?? '';
+
+                if (!empty($codigoCancha) && !empty($fechaPartido) && !empty($horaPartido)) {
+                    $cameras = $this->videos->getCamerasForVideoSession(
+                        $codigoCancha,
+                        $fechaPartido,
+                        $horaPartido
+                    );
+
+                    // Resolver URLs de cada cámara
+                    foreach ($cameras as &$camera) {
+                        $camera['video_url'] = $this->resolvePlayableVideoUrl(
+                            $camera['video_url'] ?? '',
+                            $context['baseUrl']
+                        );
+                    }
+                    unset($camera);
+                }
             }
         }
 
@@ -38,6 +71,9 @@ final class VideoController
             'videoUrl' => $videoUrl,
             'error' => $error,
             'codigoVideo' => $codigo,
+            'requiresPin' => $requiresPin,
+            'hasAccess' => $hasAccess,
+            'cameras' => $cameras,
         ]);
     }
 
@@ -80,3 +116,4 @@ final class VideoController
         return $baseUrl . '/public/video-proxy.php?url=' . urlencode($directUrl);
     }
 }
+

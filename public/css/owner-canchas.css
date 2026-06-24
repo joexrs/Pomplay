@@ -1,0 +1,544 @@
+/**
+ * Owner Canchas / CCTV Panel Styles
+ * Estilos para el panel de canchas y streaming CCTV del propietario
+ *
+ * Depende de (cargados antes por header_admin.php):
+ *   - admin-modern-v2.css  → variables --color-*, --radius-*, --shadow-*, --transition-*
+ *   - modals.css           → .modal-overlay, .modal-header, .modal-close
+ *   - tables.css           → .table-btn-icon
+ */
+
+/* =====================================================
+   TABLA DE CANCHAS — Layout grid (no es .adm-table)
+   ===================================================== */
+
+.canchas-table-wrapper {
+  background: var(--color-bg-card, #11132d);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+.canchas-table-header {
+  display: grid;
+  grid-template-columns: 100px 1fr 200px 160px;
+  gap: 16px;
+  padding: 18px 28px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-muted, rgba(255,255,255,0.3));
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+.cancha-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 200px 160px;
+  gap: 16px;
+  align-items: center;
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--color-border-light, rgba(255,255,255,0.04));
+  transition: background var(--transition-fast, 200ms), box-shadow var(--transition-fast, 200ms);
+}
+.cancha-row:last-child { border-bottom: 0; }
+.cancha-row:hover {
+  background: rgba(255, 255, 255, 0.028);
+  box-shadow: inset 3px 0 0 rgba(236, 66, 55, 0.6);
+}
+
+/* =====================================================
+   CÓDIGO BADGE
+   ===================================================== */
+.codigo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(236, 66, 55, 0.35);
+  color: var(--color-brand, #ec4237);
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 800;
+  font-size: 0.82rem;
+  min-width: 60px;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* =====================================================
+   INFO DE CANCHA
+   (selector .cancha-row para anular justify-content: space-between
+    de .cancha-info en admin-modern-v2.css)
+   ===================================================== */
+.col-descripcion { min-width: 0; }
+
+.cancha-row .cancha-info {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.cancha-row .cancha-details {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.cancha-row .cancha-imagen {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: 0 0 68px;
+  border: 2px solid rgba(236, 66, 55, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancha-row .cancha-imagen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Logo PomPlay por defecto: circular + fondo blanco */
+.cancha-row .cancha-imagen--logo {
+  background: #ffffff;
+  border-color: rgba(236, 66, 55, 0.35);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.cancha-row .cancha-imagen--logo img {
+  width: auto;
+  height: auto;
+  max-width: 68%;
+  max-height: 68%;
+  object-fit: contain;
+}
+
+.cancha-row .cancha-nombre {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cancha-row .cancha-tipo {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.35;
+}
+
+.cancha-row .cancha-ubicacion {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.38);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.35;
+}
+
+.cancha-row .cancha-ubicacion i {
+  font-size: 0.72rem;
+  color: rgba(236, 66, 55, 0.65);
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   ESTADOS DE CONECTIVIDAD DE CÁMARA
+   (distintos a .table-badge-active: ese es estado lógico BD,
+   estos son estados de red en tiempo real)
+   ===================================================== */
+.col-estado { display: flex; flex-direction: column; gap: 6px; }
+
+.estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 700;
+  font-size: 0.82rem;
+  transition: all var(--transition-fast, 200ms);
+}
+.estado-conectada    { background: rgba(16,185,129,0.1);  color: #10B981; border: 1px solid rgba(16,185,129,0.3); }
+.estado-desconectada { background: rgba(236,66,55,0.08);  color: var(--color-brand, #ec4237); border: 1px solid rgba(236,66,55,0.28); }
+.estado-cargando     { background: rgba(255,255,255,0.04); color: var(--color-text-muted, rgba(255,255,255,0.4)); border: 1px solid var(--color-border, rgba(255,255,255,0.08)); }
+
+/* =====================================================
+   INDICADOR PULSANTE DE GRABACIÓN
+   (inline en la tabla, diferente a .rec-indicator de video-detail-responsive.css
+   que es absoluto sobre el video)
+   ===================================================== */
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand, #ec4237);
+  animation: pulse-rec 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.recording-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-brand, #ec4237);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* =====================================================
+   MINI-BADGES DE CÁMARAS CONFIGURADAS
+   ===================================================== */
+.cancha-row .cam-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.cam-badge {
+  font-size: 0.7rem;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+/* =====================================================
+   BOTONES DE ACCIÓN DE CÁMARA
+   (cuadrados 42px; diferente a .table-btn-icon que es circular 36px)
+   ===================================================== */
+.col-acciones { display: flex; justify-content: flex-end; }
+.cancha-actions { display: flex; gap: 8px; align-items: center; }
+
+.btn-cam-action {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1rem;
+  transition: all var(--transition-fast, 200ms);
+}
+.btn-cam-action:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.btn-cam-action:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.btn-record-main {
+  background: rgba(236, 66, 55, 0.08);
+  border: 1px solid rgba(236, 66, 55, 0.4);
+  color: var(--color-brand, #ec4237);
+  border-radius: 50%;
+}
+.btn-record-main:hover {
+  background: rgba(236, 66, 55, 0.18);
+  box-shadow: 0 0 16px rgba(236, 66, 55, 0.25);
+}
+.btn-record-main.recording {
+  background: rgba(236, 66, 55, 0.18);
+  border-color: var(--color-brand, #ec4237);
+  box-shadow: 0 0 0 3px rgba(236, 66, 55, 0.15);
+}
+
+/* =====================================================
+   MODAL CCTV
+   El HTML usa .cctv-modal-overlay como overlay y
+   .cctv-modal como contenedor (no .modal-overlay de modals.css)
+   ===================================================== */
+.cctv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cctvFadeIn 200ms ease;
+}
+@keyframes cctvFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cctv-modal {
+  background: var(--color-bg-card, #0d0f28);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+  border-radius: var(--radius-xl, 16px);
+  width: 100%;
+  max-width: 1100px;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl, 0 24px 64px rgba(0,0,0,0.6));
+  animation: cctvSlideUp 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cctvSlideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.cctv-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: rgba(255, 255, 255, 0.02);
+}
+.cctv-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+.cctv-modal-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand, #ec4237);
+  animation: pulse-rec 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.cctv-modal-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast, 200ms);
+}
+.cctv-modal-close:hover {
+  background: rgba(236, 66, 55, 0.15);
+  color: var(--color-brand, #ec4237);
+  border-color: rgba(236, 66, 55, 0.4);
+}
+
+.cctv-modal-body { padding: 20px; }
+
+/* =====================================================
+   STREAMS WEBRTC GRID
+   ===================================================== */
+.streams-grid { display: grid; gap: 14px; }
+.streams-grid.single { grid-template-columns: 1fr; }
+.streams-grid.dual   { grid-template-columns: 1fr 1fr; }
+
+.stream-container {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+.stream-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+}
+
+.stream-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  gap: 12px;
+  color: var(--color-text-muted, rgba(255,255,255,0.5));
+  font-size: 0.85rem;
+}
+.stream-loader .spin {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--color-brand, #ec4237);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.stream-error {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  gap: 10px;
+  color: var(--color-text-muted, rgba(255,255,255,0.5));
+  font-size: 0.85rem;
+  text-align: center;
+}
+.stream-error i { font-size: 2.5rem; color: rgba(236, 66, 55, 0.6); }
+
+.stream-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* =====================================================
+   CONTROLES DE GRABACIÓN EN EL MODAL
+   ===================================================== */
+.cctv-modal-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.modal-cam-info { color: var(--color-text-muted, rgba(255,255,255,0.45)); font-size: 0.82rem; }
+
+.btn-modal-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast, 200ms);
+}
+.btn-modal-rec.start {
+  background: linear-gradient(135deg, var(--color-brand, #ec4237), #ff6b6b);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(236, 66, 55, 0.3);
+}
+.btn-modal-rec.start:hover {
+  box-shadow: 0 6px 24px rgba(236, 66, 55, 0.45);
+  transform: translateY(-1px);
+}
+.btn-modal-rec.stop {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+.btn-modal-rec.stop:hover { background: rgba(255, 255, 255, 0.1); }
+.btn-modal-rec:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+/* =====================================================
+   TOAST NOTIFICATIONS
+   (no existe equivalente en los archivos CSS base del panel)
+   ===================================================== */
+#toast-container {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  min-width: 240px;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.2));
+  pointer-events: auto;
+  animation: toastIn 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+}
+@keyframes toastIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.toast-success { background: #0d2e1a; border-color: rgba(16, 185, 129, 0.4); }
+.toast-error   { background: #2e0d0d; border-color: rgba(236, 66, 55, 0.4); }
+.toast-info    { background: #0d1a2e; border-color: rgba(102, 126, 234, 0.4); }
+.toast-warning { background: #2e250d; border-color: rgba(245, 158, 11, 0.4); }
+
+.toast-icon-success { color: #10B981; }
+.toast-icon-error   { color: var(--color-brand, #ec4237); }
+.toast-icon-info    { color: #667eea; }
+.toast-icon-warning { color: #F59E0B; }
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 900px) {
+  .canchas-table-header,
+  .cancha-row { grid-template-columns: 80px 1fr 150px 120px; }
+}
+
+@media (max-width: 768px) {
+  .canchas-table-header { display: none; }
+  .canchas-table-wrapper { background: transparent; border: 0; }
+  .cancha-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+    border-radius: var(--radius-lg, 12px);
+    margin-bottom: 10px;
+    background: linear-gradient(180deg, rgba(17,19,45,0.97), rgba(11,13,35,0.97));
+  }
+  .col-acciones { justify-content: flex-start; }
+  .cancha-actions { width: 100%; justify-content: space-between; }
+  .btn-cam-action { flex: 1; border-radius: var(--radius-md, 8px) !important; }
+  .streams-grid.dual { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .cctv-modal-body { padding: 12px; }
+  .cctv-modal-controls { flex-direction: column; align-items: stretch; }
+  .btn-modal-rec { justify-content: center; }
+}

@@ -31,16 +31,19 @@ $propietario = $stmtOwner->fetch(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        // Actualizar local
+        // Actualizar local (incluyendo es_privado)
+        $esPrivado = isset($_POST['es_privado']) ? 1 : 0;
         $stmt = $pdo->prepare("
             UPDATE locales
             SET nombre_local = :nombre_local,
-                id_propietario = :id_propietario
+                id_propietario = :id_propietario,
+                es_privado = :es_privado
             WHERE id_local = :id
         ");
         $stmt->execute([
             ':nombre_local' => $_POST['nombre_local'],
             ':id_propietario' => !empty($_POST['id_propietario']) ? $_POST['id_propietario'] : null,
+            ':es_privado' => $esPrivado,
             ':id' => $localId,
         ]);
 
@@ -102,167 +105,6 @@ include '../shared/header_admin.php';
 include '../config.php';
 ?>
 
-<style>
-  .app-content {
-    color: #ffffff;
-  }
-
-  .page-header {
-    margin-bottom: 22px;
-  }
-
-  .page-title {
-    color: #ffffff;
-    font-size: clamp(1.6rem, 4vw, 2.2rem);
-    font-weight: 800;
-  }
-
-  .page-subtitle {
-    color: rgba(255,255,255,.68);
-  }
-
-  .adm-form-wrap {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 24px 16px 44px;
-  }
-
-  .adm-form-card,
-  .form-card,
-  .card {
-    background: linear-gradient(180deg, rgba(17,19,45,.98), rgba(8,10,30,.98)) !important;
-    border: 1px solid rgba(255,255,255,.08) !important;
-    border-radius: 18px !important;
-    padding: 28px !important;
-    box-shadow: 0 18px 45px rgba(0,0,0,.28) !important;
-    color: #ffffff;
-  }
-
-  .adm-field,
-  .form-group {
-    margin-bottom: 20px;
-  }
-
-  .adm-label,
-  label {
-    display: block;
-    color: #ffffff;
-    font-weight: 700;
-    font-size: .92rem;
-    margin-bottom: 8px;
-  }
-
-  .adm-input,
-  .adm-select,
-  .form-control,
-  input,
-  select,
-  textarea {
-    width: 100%;
-    min-height: 48px;
-    background: rgba(255,255,255,.055) !important;
-    border: 1px solid rgba(255,255,255,.12) !important;
-    color: #ffffff !important;
-    border-radius: 12px !important;
-    padding: 12px 14px !important;
-    outline: none;
-    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: rgba(255,255,255,.42) !important;
-  }
-
-  select option {
-    color: #111;
-  }
-
-  input:focus,
-  select:focus,
-  textarea:focus,
-  .form-control:focus {
-    border-color: rgba(236,66,55,.75) !important;
-    box-shadow: 0 0 0 4px rgba(236,66,55,.14) !important;
-    background: rgba(255,255,255,.075) !important;
-  }
-
-  small,
-  .form-text {
-    color: rgba(255,255,255,.55) !important;
-    font-size: .82rem;
-  }
-
-  .adm-form-actions,
-  .form-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: 10px;
-  }
-
-  .btn-adm-save,
-  .btn-primary,
-  button[type="submit"] {
-    min-height: 46px;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-weight: 800;
-    background: #ec4237 !important;
-    color: #ffffff !important;
-    border: 0 !important;
-    box-shadow: 0 12px 28px rgba(236,66,55,.25);
-  }
-
-  .btn-adm-cancel,
-  .btn-secondary,
-  .btn-cancel {
-    min-height: 46px;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-weight: 800;
-    background: rgba(255,255,255,.06) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255,255,255,.12) !important;
-    text-decoration: none;
-  }
-
-  @media (max-width: 720px) {
-    .adm-form-wrap {
-      padding: 18px 12px 34px;
-    }
-
-    .adm-form-card,
-    .form-card,
-    .card {
-      padding: 20px !important;
-      border-radius: 16px !important;
-    }
-
-    .row,
-    .adm-grid-2 {
-      display: block !important;
-    }
-
-    .adm-form-actions,
-    .form-actions {
-      flex-direction: column;
-    }
-
-    .btn-adm-save,
-    .btn-adm-cancel,
-    .btn-primary,
-    .btn-secondary,
-    .btn-cancel,
-    button[type="submit"] {
-      width: 100%;
-      justify-content: center;
-      text-align: center;
-    }
-  }
-</style>
-
 <main class="app-content">
   <div class="page-header">
     <div class="page-header__content">
@@ -284,7 +126,7 @@ include '../config.php';
 
   <div class="adm-form-wrap" style="max-width:900px;">
     <?php if ($error): ?>
-      <div style="background:rgba(236,66,55,.1);border:1px solid rgba(236,66,55,.3);color:#ec4237;padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(238,62,70,.1);border:1px solid rgba(238,62,70,.3);color:#EE3E46;padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
         <i class="fas fa-exclamation-circle" style="font-size:1.2rem;"></i>
         <span><?= htmlspecialchars($error) ?></span>
       </div>
@@ -314,6 +156,24 @@ include '../config.php';
               </option>
             <?php endforeach; ?>
           </select>
+        </div>
+
+        <div class="adm-field" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+            <div>
+              <label class="adm-label" style="margin-bottom:4px; display:block;">
+                <i class="fas fa-lock" style="color:var(--color-brand); margin-right:6px;"></i>Videos Privados
+              </label>
+              <small style="color:var(--color-text-muted); font-size:0.8rem;">
+                Los videos de este local requerirán un código PIN para ser vistos
+              </small>
+            </div>
+            <label class="switch-toggle" for="es_privado" style="flex-shrink:0;">
+              <input type="checkbox" id="es_privado" name="es_privado" value="1"
+                     <?= !empty($local['es_privado']) ? 'checked' : '' ?>>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -376,5 +236,49 @@ document.getElementById('tipo_membresia').addEventListener('change', function() 
   document.getElementById('fecha_fin').value = fechaInicio.toISOString().split('T')[0];
 });
 </script>
+
+<style>
+/* Toggle Switch para es_privado */
+.switch-toggle {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  cursor: pointer;
+}
+.switch-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 28px;
+  transition: all 0.3s ease;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.switch-toggle input:checked + .switch-slider {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+.switch-toggle input:checked + .switch-slider::before {
+  transform: translateX(24px);
+}
+.switch-toggle input:focus + .switch-slider {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+</style>
 
 <?php include '../shared/footer_admin.php'; ?>

@@ -247,3 +247,243 @@
     font-size: 1rem;
   }
 }
+
+/* =====================================================
+   SELECTOR DE CÁMARAS MÚLTIPLES
+   ===================================================== */
+
+.camera-selector {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.camera-selector .cam-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.camera-selector .cam-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+.camera-selector .cam-btn.active {
+  background: var(--accent, #e74c3c);
+  border-color: var(--accent, #e74c3c);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+}
+
+.camera-selector .cam-btn.active:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
+  transform: translateY(0);
+}
+
+/* Responsive para selector de cámaras */
+@media (max-width: 768px) {
+  .camera-selector {
+    top: 60px;
+    padding: 8px 12px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .camera-selector .cam-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .camera-selector {
+    top: 55px;
+    padding: 6px 10px;
+    gap: 5px;
+    border-radius: 8px;
+    max-width: 90%;
+  }
+
+  .camera-selector .cam-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-width: 60px;
+  }
+}
+
+/* =====================================================
+   CCTV Videos — estilos específicos de esta sección
+   ===================================================== */
+
+/* Contenedor de tabla de videos */
+.videos-table-wrap {
+  background: var(--color-bg-card, #11132d);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+@media (max-width: 768px) {
+  .th-duracion,
+  .td-duracion { display: none; }
+  .videos-table-wrap { overflow-x: auto; }
+}
+
+/* Celda descripción truncada */
+.td-desc {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Celda fecha */
+.td-fecha {
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.83rem;
+}
+
+/* Badge de duración con ícono */
+.dur-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, rgba(255,255,255,0.3));
+  white-space: nowrap;
+}
+
+/* Botón reproducir — azul-índigo (extiende .table-btn-icon de tables.css) */
+.btn-vid-play {
+  border-color: rgba(102, 126, 234, 0.35);
+  color: #a5b4fc;
+}
+.btn-vid-play:hover {
+  background: rgba(102, 126, 234, 0.12);
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+/* Botón descargar — verde (extiende .table-btn-icon) */
+.btn-vid-dl {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+.btn-vid-dl:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: #a7f3d0;
+}
+
+/* Barra de estadísticas */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.stats-text {
+  color: var(--color-text-muted, rgba(255,255,255,0.3));
+  font-size: 0.85rem;
+}
+.stats-text strong { color: rgba(255, 255, 255, 0.75); }
+
+/* Paginación con enlaces <a> */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+.btn-page {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast, 200ms);
+}
+.btn-page:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.btn-page.active {
+  background: rgba(236, 66, 55, 0.15);
+  color: var(--color-brand, #ec4237);
+  border-color: rgba(236, 66, 55, 0.4);
+}
+.btn-page.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Modal de video — override de max-width y padding sobre .modal-container (modals.css) */
+.vid-modal-wrap {
+  max-width: 900px;
+  padding: 0;
+  overflow: hidden;
+}
+.vid-modal-body-inner { padding: 0; }
+.vid-modal-body-inner video {
+  width: 100%;
+  display: block;
+  background: #000;
+  max-height: 520px;
+}
+
+/* Metadatos bajo el video */
+.vid-modal-meta {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+  background: rgba(255, 255, 255, 0.02);
+}
+.vid-modal-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted, rgba(255,255,255,0.3));
+}
+.vid-modal-meta-item i { color: rgba(255, 255, 255, 0.25); }

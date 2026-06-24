@@ -312,7 +312,7 @@ try {
 
 .modal-confirmacion-content {
   position: relative;
-  background: linear-gradient(135deg, #11132d 0%, #11132d 100%);
+  background: linear-gradient(135deg, #1e1b3c 0%, #2d1b3d 100%);
   border-radius: 20px;
   padding: 40px;
   max-width: 500px;
@@ -570,9 +570,9 @@ try {
 }
 
 .renew-icon.expired {
-  background: linear-gradient(135deg, rgba(236,66,55,0.25), rgba(236,66,55,0.15));
-  color: #ec4237;
-  box-shadow: 0 8px 32px rgba(236,66,55,0.3);
+  background: linear-gradient(135deg, rgba(238,62,70,0.25), rgba(238,62,70,0.15));
+  color: #EE3E46;
+  box-shadow: 0 8px 32px rgba(238,62,70,0.3);
 }
 
 .renew-header h2 {
@@ -667,7 +667,7 @@ try {
 }
 
 .text-expired {
-  color: #ec4237 !important;
+  color: #EE3E46 !important;
   font-weight: 700 !important;
 }
 
@@ -689,9 +689,9 @@ try {
 }
 
 .badge-expired {
-  background: rgba(236,66,55,0.15);
-  color: #ec4237;
-  border-color: rgba(236,66,55,0.3);
+  background: rgba(238,62,70,0.15);
+  color: #EE3E46;
+  border-color: rgba(238,62,70,0.3);
 }
 
 .badge-active-status {

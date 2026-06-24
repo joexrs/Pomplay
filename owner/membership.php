@@ -137,7 +137,6 @@ $success = $_GET['success'] ?? null;
                 <div>
                   <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Tipo</p>
                   <p style="font-size: 0.9rem; font-weight: 600; color: var(--dk-text); margin: 0; display: flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-crown" style="color: <?= $isActive ? '#22c55e' : '#ef4444' ?>; font-size: 0.85rem;"></i>
                     <?= htmlspecialchars($membership['tipo_membresia']) ?>
                   </p>
                 </div>

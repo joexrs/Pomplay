@@ -36,7 +36,7 @@ $stmtLocales->closeCursor();
     <?php endif; ?>
 
     <?php if (isset($_SESSION['error'])): ?>
-      <div style="background:rgba(236,66,55,.1);border:1px solid rgba(236,66,55,.3);color:#ec4237;padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(238,62,70,.1);border:1px solid rgba(238,62,70,.3);color:#EE3E46;padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
         <i class="fas fa-exclamation-circle" style="font-size:1.2rem;"></i>
         <span><?= htmlspecialchars($_SESSION['error']) ?></span>
       </div>
@@ -107,7 +107,7 @@ $stmtLocales->closeCursor();
                   <a href="<?= $baseUrl ?>/admin/locales/edit.php?id=<?= $local['id_local'] ?>" class="btn-icon btn-icon-edit" title="Editar">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="../membresias/renew.php?id=<?= $local['id_local'] ?>" class="btn-icon" style="background:rgba(236,66,55,.1);color:#ec4237;" title="Renovar Membresía Vencida">
+                  <a href="../membresias/renew.php?id=<?= $local['id_local'] ?>" class="btn-icon" style="background:rgba(238,62,70,.1);color:#EE3E46;" title="Renovar Membresía Vencida">
                       <i class="fas fa-sync-alt"></i>
                   </a>
                 </div>

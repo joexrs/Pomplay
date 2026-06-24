@@ -19,7 +19,12 @@ final class JWTManager
     private static function getSecretKey(): string
     {
         if (self::$secretKey === null) {
-            self::$secretKey = self::readEnvValue('JWT_SECRET');
+            // Intentar cargar desde .env
+            $envFile = dirname(__DIR__, 2) . '/.env';
+            if (file_exists($envFile)) {
+                $env = parse_ini_file($envFile);
+                self::$secretKey = $env['JWT_SECRET'] ?? null;
+            }
 
             // Si no existe, generar una y guardarla
             if (self::$secretKey === null) {
@@ -29,35 +34,6 @@ final class JWTManager
         }
 
         return self::$secretKey;
-    }
-
-    private static function readEnvValue(string $key): ?string
-    {
-        $envFile = dirname(__DIR__, 2) . '/.env';
-        if (!is_readable($envFile)) {
-            return null;
-        }
-
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if ($lines === false) {
-            return null;
-        }
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) {
-                continue;
-            }
-
-            [$name, $value] = array_pad(explode('=', $line, 2), 2, null);
-            if (trim($name) !== $key || $value === null) {
-                continue;
-            }
-
-            return trim($value, " \t\n\r\0\x0B\"'");
-        }
-
-        return null;
     }
 
     /**
