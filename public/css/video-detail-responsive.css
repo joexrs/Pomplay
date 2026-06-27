@@ -6,19 +6,19 @@
    ============================================================ */
 
 :root {
-  --bg:        #09090b;
-  --bg-2:      #111114;
-  --bg-3:      #18181c;
-  --border:    rgba(255,255,255,0.07);
-  --border-md: rgba(255,255,255,0.12);
-  --text:      #f4f4f5;
-  --muted:     rgba(255,255,255,0.45);
-  --accent:    #e74c3c;
-  --accent-bg: rgba(231,76,60,0.14);
-  --accent-bd: rgba(231,76,60,0.32);
-  --radius:    12px;
-  --transition: 0.2s cubic-bezier(.4,0,.2,1);
-  --btn-size:  46px;
+  --bg: #09090b;
+  --bg-2: #111114;
+  --bg-3: #18181c;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-md: rgba(255, 255, 255, 0.12);
+  --text: #f4f4f5;
+  --muted: rgba(255, 255, 255, 0.45);
+  --accent: #e74c3c;
+  --accent-bg: rgba(231, 76, 60, 0.14);
+  --accent-bd: rgba(231, 76, 60, 0.32);
+  --radius: 12px;
+  --transition: 0.2s cubic-bezier(.4, 0, .2, 1);
+  --btn-size: 46px;
 
   /* Altura viewport cross-browser (iOS friendly) */
   --vh: 100vh;
@@ -26,16 +26,27 @@
 }
 
 @supports (height: 100 dvh) {
-  :root { --dvh: 100 dvh; }
+  :root {
+    --dvh: 100 dvh;
+  }
 }
 
 @supports (-webkit-touch-callout: none) {
-  :root { --dvh: -webkit-fill-available; }
+  :root {
+    --dvh: -webkit-fill-available;
+  }
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html, body {
+html,
+body {
   background: #000 !important;
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
@@ -47,9 +58,19 @@ html, body {
   padding: 0 !important;
 }
 
-body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareModal):not(#clipsModal):not(.toast-notification),
-.wrapper, .container, .page-wrapper, .main-wrapper, .content-wrapper,
-.site-wrapper, .layout-wrapper, #wrapper, #container, #page, #main, #content {
+body>*:not(.detail-content):not(script):not(style):not(link):not(#mobileShareModal):not(#clipsModal):not(#clipProcessingModal):not(.clip-proc-modal):not(.toast-notification),
+.wrapper,
+.container,
+.page-wrapper,
+.main-wrapper,
+.content-wrapper,
+.site-wrapper,
+.layout-wrapper,
+#wrapper,
+#container,
+#page,
+#main,
+#content {
   display: contents !important;
   max-width: none !important;
   width: 100% !important;
@@ -57,7 +78,12 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin: 0 !important;
 }
 
-.site-nav, .site-footer, .page-header-detail, header, footer, nav {
+.site-nav,
+.site-footer,
+.page-header-detail,
+header,
+footer,
+nav {
   display: none !important;
 }
 
@@ -68,9 +94,13 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
-  height: var(--dvh) !important;
+  /* Fallback progresivo: 100vh → dvh → JS real-vh */
+  height: 100vh !important;
+  height: 100dvh !important;
+  height: var(--real-vh, 100vh) !important;
   max-width: 100vw !important;
-  max-height: var(--dvh) !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
   background: #000 !important;
@@ -113,9 +143,12 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* justify-content no aplica con rail-spacer (flex:1) */
+  justify-content: flex-start;
   gap: 10px;
-  padding: 20px 0;
+  /* padding-bottom: distancia desde el fondo hasta el último botón
+     = barra progreso + tiempo + padding inferior de controls ≈ 34px */
+  padding: 20px 0 48px;
   z-index: 30;
   width: 44px;
   opacity: 0;
@@ -123,8 +156,20 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   pointer-events: none;
 }
 
-.player-rail-left  { left: 6px; }
-.player-rail-right { right: 6px; }
+/* En móvil (touch) los rieles suben para no solaparse con la barra de controles */
+@media (hover: none) {
+  .player-rail {
+    padding-bottom: 200px;
+  }
+}
+
+.player-rail-left {
+  left: 6px;
+}
+
+.player-rail-right {
+  right: 6px;
+}
 
 .video-player-wrap:hover .player-rail,
 .video-player-wrap.controls-visible .player-rail {
@@ -133,7 +178,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 @media (hover: none) {
-  .player-rail { opacity: 1 !important; pointer-events: auto !important; }
+  .player-rail {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 .rail-sep {
@@ -144,12 +192,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin: 4px 0;
 }
 
-.rail-spacer { flex: 1; }
+.rail-spacer {
+  flex: 1;
+}
 
-/* ── Botón de riel — icono blanco "fantasma", sin contenedor ── */
+/* ── Botón de riel — simétrico: todos 44×44 con icono 24px ── */
 .rail-btn {
-  width: auto;
-  height: auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   border-radius: 0;
   background: transparent;
   border: none;
@@ -158,8 +209,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 22px;
-  padding: 6px;
+  font-size: 24px;
+  padding: 10px;
   transition: color var(--transition), transform var(--transition), opacity var(--transition);
   text-decoration: none;
   flex-shrink: 0;
@@ -169,9 +220,13 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   line-height: 1;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   position: relative;
+  box-sizing: border-box;
 }
 
-.rail-btn i { line-height: 1; display: inline-block; }
+.rail-btn i {
+  line-height: 1;
+  display: inline-block;
+}
 
 .rail-btn:hover {
   background: transparent;
@@ -179,10 +234,18 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transform: scale(1.15);
 }
 
-.rail-btn:active { transform: scale(0.9); opacity: 0.75; }
+.rail-btn:active {
+  transform: scale(0.9);
+  opacity: 0.75;
+}
 
-.rail-btn.accent { color: var(--accent, #e74c3c); }
-.rail-btn.accent:hover { color: #ff6b5b; }
+.rail-btn.accent {
+  color: var(--accent, #e74c3c);
+}
+
+.rail-btn.accent:hover {
+  color: #ff6b5b;
+}
 
 /* Badge contador de clips */
 .rail-btn .badge-count {
@@ -205,12 +268,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   line-height: 1;
 }
 
-.rail-btn .badge-count.visible { display: flex; }
+.rail-btn .badge-count.visible {
+  display: flex;
+}
 
-/* Botón de regreso */
+/* Botón de regreso — mismas dimensiones que rail-btn */
 .rail-btn-back {
-  width: auto;
-  height: auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   border-radius: 0;
   background: transparent;
   border: none;
@@ -219,8 +285,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 22px;
-  padding: 6px;
+  font-size: 24px;
+  padding: 10px;
   text-decoration: none;
   transition: color var(--transition), transform var(--transition), opacity var(--transition);
   -webkit-tap-highlight-color: transparent;
@@ -228,9 +294,12 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   appearance: none;
   flex-shrink: 0;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
 }
 
-.rail-btn-back i { line-height: 1; }
+.rail-btn-back i {
+  line-height: 1;
+}
 
 .rail-btn-back:hover {
   background: transparent;
@@ -238,7 +307,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transform: translateX(-2px) scale(1.15);
 }
 
-.rail-btn-back:active { transform: scale(0.9); opacity: 0.75; }
+.rail-btn-back:active {
+  transform: scale(0.9);
+  opacity: 0.75;
+}
 
 .zoom-level-label {
   font-family: 'DM Mono', monospace;
@@ -309,9 +381,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   z-index: 25;
   padding: 14px 16px 14px;
   background: linear-gradient(to top,
-    rgba(0,0,0,0.88) 0%,
-    rgba(0,0,0,0.55) 55%,
-    transparent      100%);
+      rgba(0, 0, 0, 0.88) 0%,
+      rgba(0, 0, 0, 0.55) 55%,
+      transparent 100%);
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -324,7 +396,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 @media (hover: none) {
-  .custom-controls { opacity: 1 !important; pointer-events: auto !important; }
+  .custom-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 /* ============================================================
@@ -335,12 +410,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   align-items: center;
   justify-content: center;
   gap: 22px;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
   min-height: 56px;
 }
 
 /* Barra de progreso */
-.progress-bar-container { margin-bottom: 6px; }
+.progress-bar-container {
+  margin-bottom: 6px;
+  margin-top: 8px;
+}
 
 .progress-bar {
   height: 3px;
@@ -351,7 +429,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transition: height 0.15s ease;
 }
 
-.progress-bar:hover { height: 5px; }
+.progress-bar:hover {
+  height: 5px;
+}
 
 .progress-filled {
   height: 100%;
@@ -376,7 +456,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-.progress-bar:hover .progress-filled::after { opacity: 1; }
+.progress-bar:hover .progress-filled::after {
+  opacity: 1;
+}
 
 .time-display {
   display: flex;
@@ -398,7 +480,8 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin-top: 6px;
 }
 
-.controls-left, .controls-right {
+.controls-left,
+.controls-right {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -415,7 +498,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   min-width: 56px;
   border-radius: 50%;
   background: var(--accent);
-  border: 3px solid #fff;
+  border: 5px solid #fff;
   color: #fff;
   display: flex;
   align-items: center;
@@ -431,35 +514,53 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   flex-shrink: 0;
 }
 
-.record-center-btn .fa-circle { font-size: 16px; }
-.record-center-btn .fa-stop   { font-size: 14px; }
+/* Sin icono interno visible en idle — el botón es solo el círculo rojo */
+.record-center-btn .fa-circle {
+  display: none;
+}
+
+.record-center-btn .fa-stop {
+  font-size: 16px;
+}
 
 .record-center-btn:hover {
   transform: scale(1.08);
   box-shadow: 0 0 0 6px rgba(231, 76, 60, 0.4);
 }
 
-.record-center-btn:active { transform: scale(0.92); }
+.record-center-btn:active {
+  transform: scale(0.92);
+}
 
 .record-center-btn.recording {
-  width: auto;
-  min-width: 120px;
-  height: 48px;
-  border-radius: 24px;
-  background: var(--accent);
-  border-color: #fff;
+  /* Siempre circular — el círculo rojo desaparece, aparece el cuadrado stop */
+  width: 56px;
+  min-width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 5px solid #fff;
   color: #fff;
-  padding: 0 18px;
-  gap: 8px;
+  padding: 0;
+  gap: 0;
   animation: pulse-record-center 1.2s ease-in-out infinite;
   box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
 }
 
-.record-center-btn.recording .fa-circle { display: none; }
+.record-center-btn.recording .fa-circle {
+  display: none;
+}
 
 @keyframes pulse-record-center {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
-  50%       { box-shadow: 0 0 0 12px rgba(231, 76, 60, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgba(231, 76, 60, 0);
+  }
 }
 
 .record-center-btn .rec-btn-timer {
@@ -494,19 +595,24 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-.control-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
-.control-btn:active { transform: scale(0.92); }
-
-/* Rewind / forward un poco más chicos para que no compitan visualmente con REC */
-#rewindBtn, #forwardBtn {
-  width: 36px;
-  height: 36px;
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.9);
+.control-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
+.control-btn:active {
+  transform: scale(0.92);
+}
+
+/* #rewindBtn y #forwardBtn heredan las dimensiones de .rail-btn (44×44, 24px)
+   No hay override — son simétricos con todos los demás botones del riel. */
+
 /* Volumen */
-.volume-control { display: flex; align-items: center; gap: 6px; }
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .volume-slider {
   width: 70px;
@@ -515,10 +621,14 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transition: opacity 0.2s;
 }
 
-.volume-control:hover .volume-slider { opacity: 1; }
+.volume-control:hover .volume-slider {
+  opacity: 1;
+}
 
 /* Velocidad */
-.speed-control { position: relative; }
+.speed-control {
+  position: relative;
+}
 
 .speed-menu {
   position: absolute;
@@ -537,7 +647,17 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   -webkit-backdrop-filter: blur(8px);
 }
 
-.speed-menu.open { display: flex; }
+/* En el riel izquierdo el menú se abre hacia la derecha */
+.player-rail-left .speed-menu {
+  right: auto;
+  left: calc(100% + 8px);
+  bottom: 0;
+  top: auto;
+}
+
+.speed-menu.open {
+  display: flex;
+}
 
 .speed-menu button {
   padding: 8px 14px;
@@ -551,8 +671,14 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transition: background var(--transition), color var(--transition);
 }
 
-.speed-menu button:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
-.speed-menu button.active { color: var(--accent); }
+.speed-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.speed-menu button.active {
+  color: var(--accent);
+}
 
 .speed-text {
   font-family: 'DM Mono', monospace;
@@ -570,7 +696,7 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   right: 0;
   z-index: 25;
   padding: 16px 72px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -586,7 +712,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 @media (hover: none) {
-  .video-top-bar { opacity: 1 !important; pointer-events: auto !important; }
+  .video-top-bar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 .video-top-title {
@@ -639,7 +768,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   white-space: nowrap;
 }
 
-.rec-indicator.active { display: flex; }
+.rec-indicator.active {
+  display: flex;
+}
 
 .rec-dot {
   width: 7px;
@@ -651,8 +782,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
 }
 
 @keyframes blink-dot {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.15; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.15;
+  }
 }
 
 /* ============================================================
@@ -671,8 +809,15 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   pointer-events: none;
 }
 
-.loading-overlay.show { display: flex; pointer-events: auto; }
-.loading-overlay.hidden { display: none; pointer-events: none; }
+.loading-overlay.show {
+  display: flex;
+  pointer-events: auto;
+}
+
+.loading-overlay.hidden {
+  display: none;
+  pointer-events: none;
+}
 
 .spinner {
   width: 30px;
@@ -683,7 +828,11 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ============================================================
    PROGRESS DE MARCA DE AGUA
@@ -707,7 +856,9 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   -webkit-backdrop-filter: blur(8px);
 }
 
-.watermark-progress.active { display: flex; }
+.watermark-progress.active {
+  display: flex;
+}
 
 .wm-bar-wrap {
   width: 100%;
@@ -850,7 +1001,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   appearance: none;
 }
 
-.mobile-share-close:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+.mobile-share-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
 
 .mobile-share-content h3 {
   font-size: 11px;
@@ -891,14 +1045,38 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   transition: transform var(--transition);
 }
 
-.share-icon:active .share-icon-circle { transform: scale(0.88); }
+.share-icon:active .share-icon-circle {
+  transform: scale(0.88);
+}
 
-.si-whatsapp { background: rgba(37, 211, 102, 0.10) !important; border-color: rgba(37, 211, 102, 0.2) !important; color: #25d366; }
-.si-facebook  { background: rgba(24, 119, 242, 0.10) !important; border-color: rgba(24, 119, 242, 0.2) !important; color: #1877f2; }
-.si-twitter   { background: rgba(29, 161, 242, 0.10) !important; border-color: rgba(29, 161, 242, 0.2) !important; color: #1da1f2; }
-.si-download  { background: var(--accent-bg) !important; border-color: var(--accent-bd) !important; color: var(--accent); }
+.si-whatsapp {
+  background: rgba(37, 211, 102, 0.10) !important;
+  border-color: rgba(37, 211, 102, 0.2) !important;
+  color: #25d366;
+}
 
-.share-icon span { font-size: 10px; color: var(--muted); }
+.si-facebook {
+  background: rgba(24, 119, 242, 0.10) !important;
+  border-color: rgba(24, 119, 242, 0.2) !important;
+  color: #1877f2;
+}
+
+.si-twitter {
+  background: rgba(29, 161, 242, 0.10) !important;
+  border-color: rgba(29, 161, 242, 0.2) !important;
+  color: #1da1f2;
+}
+
+.si-download {
+  background: var(--accent-bg) !important;
+  border-color: var(--accent-bd) !important;
+  color: var(--accent);
+}
+
+.share-icon span {
+  font-size: 10px;
+  color: var(--muted);
+}
 
 /* ============================================================
    MODAL DE CLIPS
@@ -998,7 +1176,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   appearance: none;
 }
 
-.clips-modal-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.clips-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
 
 .clips-list {
   flex: 1;
@@ -1010,8 +1191,14 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   -webkit-overflow-scrolling: touch;
 }
 
-.clips-list::-webkit-scrollbar { width: 4px; }
-.clips-list::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 2px; }
+.clips-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.clips-list::-webkit-scrollbar-thumb {
+  background: var(--border-md);
+  border-radius: 2px;
+}
 
 .clip-item {
   background: rgba(255, 255, 255, 0.03);
@@ -1045,7 +1232,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   object-fit: cover;
 }
 
-.clip-info { flex: 1; min-width: 0; }
+.clip-info {
+  flex: 1;
+  min-width: 0;
+}
 
 .clip-name {
   font-size: 12px;
@@ -1063,7 +1253,11 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin-top: 3px;
 }
 
-.clip-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.clip-actions {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
 
 .clip-action-btn {
   width: 30px;
@@ -1121,7 +1315,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   appearance: none;
 }
 
-.clips-footer-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+.clips-footer-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
 
 .clips-footer-btn.primary {
   background: var(--accent-bg);
@@ -1160,7 +1357,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   padding: 24px;
 }
 
-.empty-state { text-align: center; max-width: 400px; }
+.empty-state {
+  text-align: center;
+  max-width: 400px;
+}
 
 .empty-state-icon {
   font-size: 48px;
@@ -1169,7 +1369,10 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   opacity: 0.6;
 }
 
-.empty-state h3 { font-size: 18px; margin-bottom: 8px; }
+.empty-state h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
 
 .empty-state p {
   color: var(--muted);
@@ -1177,30 +1380,53 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   margin-bottom: 24px;
 }
 
-.animated-actions-container { display: none !important; }
+.animated-actions-container {
+  display: none !important;
+}
 
 /* ============================================================
    RESPONSIVE — MOBILE
    ============================================================ */
 @media (max-width: 600px) {
-  :root { --btn-size: 40px; }
+  :root {
+    --btn-size: 40px;
+  }
 
   .player-rail {
     width: 48px;
     gap: 8px;
-    padding: 16px 0;
+    padding: 16px 0 48px;
+    /* padding-bottom por encima de la barra de controles */
   }
 
-  .player-rail-left  { left: 4px; }
-  .player-rail-right { right: 4px; }
+  .player-rail-left {
+    left: 4px;
+  }
 
-  .video-top-bar { padding: 10px 56px; }
-  .video-top-meta { display: none; }
+  .player-rail-right {
+    right: 4px;
+  }
 
-  .controls-right #pipBtn { display: none !important; }
-  .volume-slider { width: 50px; }
+  .video-top-bar {
+    padding: 10px 56px;
+  }
 
-  .controls-rec-row { gap: 16px; min-height: 50px; }
+  .video-top-meta {
+    display: none;
+  }
+
+  .controls-right #pipBtn {
+    display: none !important;
+  }
+
+  .volume-slider {
+    width: 50px;
+  }
+
+  .controls-rec-row {
+    gap: 16px;
+    min-height: 50px;
+  }
 
   .record-center-btn {
     width: 50px;
@@ -1210,86 +1436,304 @@ body > *:not(.detail-content):not(script):not(style):not(link):not(#mobileShareM
   }
 
   .record-center-btn.recording {
-    width: auto;
-    min-width: 110px;
-    height: 46px;
-    border-radius: 23px;
-    padding: 0 14px;
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    padding: 0;
   }
 
-  #rewindBtn, #forwardBtn { width: 32px; height: 32px; font-size: 14px; }
+  #rewindBtn,
+  #forwardBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
 
-  .custom-controls { padding: 12px 12px 12px; }
+  .custom-controls {
+    padding: 12px 12px 12px;
+  }
 
-  .mobile-share-grid { gap: 8px; }
-  .share-icon-circle { width: 46px; height: 46px; font-size: 18px; }
+  .mobile-share-grid {
+    gap: 8px;
+  }
 
+  .share-icon-circle {
+    width: 46px;
+    height: 46px;
+    font-size: 18px;
+  }
+
+  /* Modal clips — fix para Android (position:fixed más fiable que absolute) */
   .clips-modal-content {
+    position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     top: auto;
-    transform: translateY(100%);
     width: 100%;
+    max-width: 100vw;
+    transform: translateY(100%);
     border-radius: 18px 18px 0 0;
-    max-height: 85vh;
-    max-height: 85dvh;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    max-height: min(88vh, 88dvh);
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    box-sizing: border-box;
   }
+
   .clips-modal.open .clips-modal-content {
     transform: translateY(0);
+  }
+
+  /* La lista de clips necesita su propio scroll en Android */
+  .clips-list {
+    max-height: calc(min(88vh, 88dvh) - 124px);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 
 @media (max-width: 360px) {
-  :root { --btn-size: 36px; }
+  :root {
+    --btn-size: 36px;
+  }
 
-  .player-rail { width: 42px; gap: 6px; }
-  .player-rail-left  { left: 2px; }
-  .player-rail-right { right: 2px; }
+  .player-rail {
+    width: 42px;
+    gap: 6px;
+  }
 
-  .video-top-bar { padding: 8px 48px; }
+  .player-rail-left {
+    left: 2px;
+  }
 
-  .controls-rec-row { gap: 12px; min-height: 46px; }
+  .player-rail-right {
+    right: 2px;
+  }
+
+  .video-top-bar {
+    padding: 8px 48px;
+  }
+
+  .controls-rec-row {
+    gap: 12px;
+    min-height: 46px;
+  }
 
   .record-center-btn {
     width: 46px;
     height: 46px;
     min-width: 46px;
   }
+
   .record-center-btn.recording {
-    min-width: 100px;
-    height: 42px;
-    border-radius: 21px;
-    padding: 0 12px;
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    padding: 0;
   }
 
-  .volume-slider { display: none; }
-  .controls-left, .controls-right { gap: 4px; }
+  .volume-slider {
+    display: none;
+  }
+
+  .controls-left,
+  .controls-right {
+    gap: 4px;
+  }
 }
 
 @media (max-height: 480px) and (orientation: landscape) {
-  :root { --btn-size: 34px; }
-
-  .player-rail { gap: 6px; padding: 8px 0; }
-  .custom-controls { padding: 32px 14px 10px; }
-
-  .record-center-btn { width: 44px; height: 44px; min-width: 44px; }
-  .record-center-btn.recording {
-    width: auto;
-    min-width: 100px;
-    height: 40px;
-    border-radius: 20px;
-    padding: 0 12px;
+  :root {
+    --btn-size: 34px;
   }
 
-  .rec-indicator { top: 8px; font-size: 10px; padding: 4px 10px; }
+  .player-rail {
+    gap: 6px;
+    padding: 8px 0 200px;
+  }
+
+  /* landscape: sube botones sobre controles */
+  .custom-controls {
+    padding: 32px 14px 10px;
+  }
+
+  .record-center-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .record-center-btn.recording {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    padding: 0;
+  }
+
+  .rec-indicator {
+    top: 8px;
+    font-size: 10px;
+    padding: 4px 10px;
+  }
 }
 
 /* Animaciones */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.reveal { animation: fadeIn 0.35s ease both; }
+.reveal {
+  animation: fadeIn 0.35s ease both;
+}
+
+/* ============================================================
+   ANDROID / NON-iOS
+   @supports not (-webkit-touch-callout: none) = todo excepto iOS Safari
+   Corrige video mal posicionado por viewport dinámico
+   ============================================================ */
+@supports not (-webkit-touch-callout: none) {
+
+  /* El JS ya setea --real-vh via window.innerHeight.
+     Aqui forzamos que video-section y player-wrap la respeten también */
+  .video-section,
+  .video-player-wrap {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .video-player {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    /* Forzar aceleración GPU en Android Chrome */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+}
+
+/* ============================================================
+   ANDROID ESPECÍFICO - Mejoras de responsividad
+   Solo se aplica cuando el body tiene la clase is-android
+   NO afecta a iOS
+   ============================================================ */
+.is-android .detail-content {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: var(--android-vh, 100vh) !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.is-android .video-section {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.is-android .video-player-wrap {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  /* Prevenir problemas de scroll en Android */
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior: contain;
+}
+
+.is-android .video-player {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  /* Optimización de renderizado para Android */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+}
+
+/* Fix para modales en Android - usar todo el espacio disponible */
+.is-android .clips-modal,
+.is-android .mobile-share-modal,
+.is-android .clip-proc-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: var(--android-vh, 100vh) !important;
+}
+
+/* Fix específico para el contenido del modal de clips en Android:
+   En móvil (<600px) se usa bottom-sheet — no interferir con esa animación */
+@media (min-width: 601px) {
+  .is-android .clips-modal-content {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) scale(0.96) !important;
+    max-height: 85vh !important;
+    max-height: calc(var(--android-vh, 100vh) * 0.85) !important;
+  }
+
+  .is-android .clips-modal.open .clips-modal-content {
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+}
+
+/* Ajuste de controles en Android para que no se corten */
+.is-android .custom-controls {
+  padding-bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+}
+
+/* Ajuste de la barra superior en Android */
+.is-android .video-top-bar {
+  padding-top: max(16px, env(safe-area-inset-top, 16px)) !important;
+}
+
+/* Prevenir zoom no deseado en inputs en Android */
+.is-android input,
+.is-android textarea,
+.is-android select {
+  font-size: 16px !important;
+}

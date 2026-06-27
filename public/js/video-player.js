@@ -234,7 +234,8 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (state === 'marking') {
       recordBtn.classList.add('recording');
       recordBtn.setAttribute('title', 'Detener clip');
-      recordBtn.innerHTML = '<i class="fas fa-stop"></i><span class="rec-btn-timer">00:00</span>';
+      // Solo ícono stop — el timer va al recIndicator, no al botón
+      recordBtn.innerHTML = '<i class="fas fa-stop"></i>';
     } else if (state === 'processing') {
       recordBtn.setAttribute('title', 'Procesando en servidor…');
       recordBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -255,15 +256,12 @@ document.addEventListener('DOMContentLoaded', function () {
     setRecordBtnState('marking');
     if (recIndicator) recIndicator.classList.add('active');
 
-    // Actualizar el contador en tiempo real
+    // Solo actualizar el contador del recIndicator (no el botón)
     clipTimerInt = setInterval(() => {
       const elapsed = (Date.now() - clipStartWall) / 1000;
-      const timerEl = recordBtn?.querySelector('.rec-btn-timer');
-      if (timerEl) timerEl.textContent = formatDuration(elapsed);
       if (recTimer) recTimer.textContent = formatDuration(elapsed);
     }, 500);
 
-    
     log('clipStart =', clipStart);
   }
 
@@ -271,6 +269,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!isClipping) return;
     isClipping = false;
     clearInterval(clipTimerInt);
+
+    // 1. Pausar el video inmediatamente
+    videoPlayer.pause();
 
     const clipEnd = videoPlayer.currentTime;
     const duration = clipEnd - clipStart;
@@ -284,14 +285,17 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // Capturar frame del video en el momento de detener
+    // 2. Capturar thumbnail del frame actual
     const thumbnail = captureCurrentFrame();
 
-    setRecordBtnState('processing');
-    
+    // 3. Volver al estado idle pero mantener botón deshabilitado
+    //    El modal de procesamiento es el único indicador — sin spinner en el botón
+    setRecordBtnState('idle');
+    if (recordBtn) recordBtn.disabled = true;
+    if (clipsBtn) clipsBtn.disabled = true;
+    showProcModal('processing', 'Procesando video…');
 
     const videoUrl = videoPlayer.currentSrc || videoPlayer.src;
-
     const clipData = {
       videoUrl,
       startTime: clipStart,
@@ -305,14 +309,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     log('Enviando clip:', clipData);
 
-    // Mostrar barra de progreso
-    showClipProgress(true, 'Procesando clip en servidor…', 10);
+    // Animación sintética de progreso mientras espera al servidor
+    let fakeProgress = 10;
+    const fakeInterval = setInterval(() => {
+      fakeProgress = Math.min(85, fakeProgress + Math.random() * 7);
+      updateProcProgress(fakeProgress);
+    }, 1200);
 
     try {
       const result = await sendClipToBackend(clipData);
-      showClipProgress(true, 'Clip generado, cargando…', 95);
-      await new Promise(r => setTimeout(r, 400));
-      showClipProgress(false);
+
+      clearInterval(fakeInterval);
+      updateProcProgress(100);
 
       const clip = {
         id: Date.now(),
@@ -329,13 +337,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
       addClip(clip);
       renderClipsList();
-      showToast('✓ Clip listo — puedes descargarlo', 'success');
+
+      // 4. Mostrar éxito → esperar 1.5s → cerrar → abrir historial
+      showProcModal('success', 'Clip generado correctamente');
+      await new Promise(r => setTimeout(r, 1500));
+      closeProcModal();
+      openClipsModal();
 
     } catch (error) {
+      clearInterval(fakeInterval);
       err('stopClip error:', error);
-      showClipProgress(false);
-      showToast('⚠ Error al procesar el clip: ' + (error.message || 'sin conexión'));
+      showProcModal('error', error.message || 'Sin conexión al servidor');
     } finally {
+      if (clipsBtn) clipsBtn.disabled = false;
       setRecordBtnState('idle');
     }
   }
@@ -345,7 +359,8 @@ document.addEventListener('DOMContentLoaded', function () {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         if (attempt > 0) {
-          showClipProgress(true, `Reintentando (${attempt}/${retries})…`, 20 + attempt * 20);
+          const subEl = document.getElementById('clipProcSub');
+          if (subEl) subEl.textContent = `Reintentando (${attempt}/${retries})…`;
           await new Promise(r => setTimeout(r, 1500 * attempt));
         }
 
@@ -379,39 +394,65 @@ document.addEventListener('DOMContentLoaded', function () {
     throw new Error('No se pudo conectar al servidor tras varios intentos');
   }
 
-  // ── Barra de progreso del clip ────────────────────────────
-  let _progressOverlay = null;
+  // ── Modal de procesamiento de clip ───────────────────────
+  function showProcModal(state, message) {
+    const modal = document.getElementById('clipProcessingModal');
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.removeAttribute('aria-hidden');
 
-  function getProgressOverlay() {
-    if (_progressOverlay) return _progressOverlay;
-    _progressOverlay = document.createElement('div');
-    _progressOverlay.id = 'clipProgressOverlay';
-    _progressOverlay.innerHTML = `
-      <div class="clip-progress-inner">
-        <div class="clip-progress-spinner"><i class="fas fa-cog fa-spin"></i></div>
-        <div class="clip-progress-text" id="clipProgressText">Procesando…</div>
-        <div class="clip-progress-bar-wrap">
-          <div class="clip-progress-bar-fill" id="clipProgressFill"></div>
-        </div>
-        <div class="clip-progress-pct" id="clipProgressPct">0%</div>
-      </div>`;
-    document.body.appendChild(_progressOverlay);
-    return _progressOverlay;
+    const iconWrap = document.getElementById('clipProcIconWrap');
+    const titleEl  = document.getElementById('clipProcTitle');
+    const subEl    = document.getElementById('clipProcSub');
+
+    // Limpiar botón de cierre previo
+    modal.querySelector('.clip-proc-close-btn')?.remove();
+
+    if (state === 'processing') {
+      if (iconWrap) {
+        iconWrap.className = 'clip-proc-icon-wrap';
+        iconWrap.innerHTML = '<div class="spinner"></div>';
+      }
+      if (titleEl) titleEl.textContent = message || 'Procesando video…';
+      if (subEl)   subEl.textContent   = 'Esto puede tomar unos segundos';
+    } else if (state === 'success') {
+      if (iconWrap) {
+        iconWrap.className = 'clip-proc-icon-wrap success';
+        iconWrap.innerHTML = '<i class="fas fa-check"></i>';
+      }
+      if (titleEl) titleEl.textContent = message || 'Clip generado';
+      if (subEl)   subEl.textContent   = 'Abriendo historial de clips…';
+    } else if (state === 'error') {
+      if (iconWrap) {
+        iconWrap.className = 'clip-proc-icon-wrap error';
+        iconWrap.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+      }
+      if (titleEl) titleEl.textContent = 'Error al procesar';
+      if (subEl)   subEl.textContent   = message || 'Sin conexión al servidor';
+      // Añadir botón de cierre en estado error
+      const content = modal.querySelector('.clip-proc-content');
+      if (content) {
+        const btn = document.createElement('button');
+        btn.className = 'clip-proc-close-btn';
+        btn.textContent = 'Cerrar';
+        btn.onclick = closeProcModal;
+        content.appendChild(btn);
+      }
+    }
   }
 
-  function showClipProgress(show, message = 'Procesando clip…', percent = 0) {
-    const overlay = getProgressOverlay();
-    if (show) {
-      overlay.classList.add('active');
-      const textEl = document.getElementById('clipProgressText');
-      const fillEl = document.getElementById('clipProgressFill');
-      const pctEl = document.getElementById('clipProgressPct');
-      if (textEl) textEl.textContent = message;
-      if (fillEl) fillEl.style.width = Math.min(100, percent) + '%';
-      if (pctEl) pctEl.textContent = Math.min(100, Math.round(percent)) + '%';
-    } else {
-      overlay.classList.remove('active');
-    }
+  function closeProcModal() {
+    const modal = document.getElementById('clipProcessingModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.querySelector('.clip-proc-close-btn')?.remove();
+    updateProcProgress(0);
+  }
+
+  function updateProcProgress(percent) {
+    const fill = document.getElementById('clipProcBarFill');
+    if (fill) fill.style.width = Math.min(100, Math.round(percent)) + '%';
   }
 
   // ── Selector de cámaras ───────────────────────────────────
@@ -468,16 +509,32 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('shareMainTrigger')?.addEventListener('click', openShareModal);
   shareModal2?.querySelectorAll('[data-action="close"]').forEach(el => el.addEventListener('click', closeShareModal));
 
-  // ── Descargar todos los clips ─────────────────────────────
+  // ── Descargar todos los clips (secuencial con progreso visual) ─
   downloadAllBtn?.addEventListener('click', async function () {
-    const allClips = clips;
+    const allClips = [...clips]; // copia inmutable
     if (!allClips.length) { showToast('⚠ No hay clips para descargar'); return; }
 
-    showToast(`Descargando ${allClips.length} clip(s)…`);
-    for (const clip of allClips) {
+    this.disabled = true;
+    const origHtml = this.innerHTML;
+
+    for (let i = 0; i < allClips.length; i++) {
+      const clip = allClips[i];
+
+      // Indicador de progreso en el botón
+      this.innerHTML = `<i class="fas fa-spinner fa-spin"></i>&nbsp;${i + 1}/${allClips.length}`;
+
+      // Resaltar el clip que se está descargando
+      clipsListEl?.querySelectorAll('.clip-item').forEach(el => el.classList.remove('downloading'));
+      clipsListEl?.querySelector(`.clip-item[data-id="${clip.id}"]`)?.classList.add('downloading');
+
       await downloadClip(clip);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 800)); // pausa entre descargas
     }
+
+    // Limpiar highlights
+    clipsListEl?.querySelectorAll('.clip-item').forEach(el => el.classList.remove('downloading'));
+    this.innerHTML = origHtml;
+    this.disabled = false;
     showToast(`✓ ${allClips.length} clip(s) descargados`, 'success');
   });
 

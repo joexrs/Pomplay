@@ -45,7 +45,7 @@
   pointer-events: auto;
 }
 
-.progress-bar-container { margin-bottom: 6px; }
+.progress-bar-container { margin-bottom: 12px; }
 
 .progress-bar {
   width: 100%;
@@ -92,7 +92,7 @@
   color: rgba(255, 255, 255, 0.55);
   font-size: 11px;
   font-weight: 500;
-  margin-top: 6px;
+  margin-top: 10px;
   font-family: 'DM Mono', monospace;
 }
 
@@ -111,7 +111,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
 .controls-left,
@@ -378,6 +378,10 @@
 
   #pipBtn,
   #fullscreenBtn { min-width: 40px; height: 40px; font-size: 18px; }
+
+  /* Mobile responsive spacing (all platforms) */
+  .progress-bar-container { margin-bottom: 14px; }
+  .custom-controls { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 480px) {
@@ -408,6 +412,11 @@
   #pipBtn { display: none !important; }
 
   .volume-slider { width: 50px; opacity: 1; }
+
+  /* Extra spacing for small mobile screens */
+  .progress-bar-container { margin-bottom: 16px; }
+  .time-display { margin-top: 12px; }
+  .custom-controls { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 360px) {
@@ -429,6 +438,10 @@
   }
 
   .volume-slider { display: none; }
+
+  /* Very small screens spacing */
+  .progress-bar-container { margin-bottom: 18px; }
+  .custom-controls { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 
 /* ============================================================
@@ -525,4 +538,163 @@
 .clip-action-btn[data-action="share"]:hover {
   color: #fff;
   background: rgba(46, 213, 115, 0.15);
+}
+
+/* ============================================================
+   MODAL DE PROCESAMIENTO DE CLIP
+   ============================================================ */
+.clip-proc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.clip-proc-modal.open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
+
+.clip-proc-content {
+  background: #0e0e12;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  width: min(360px, 88vw);
+  padding: 36px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8),
+              0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: procModalIn 0.28s cubic-bezier(.4, 0, .2, 1);
+}
+
+@keyframes procModalIn {
+  from { transform: scale(0.94) translateY(8px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);       opacity: 1; }
+}
+
+.clip-proc-icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+}
+
+.clip-proc-icon-wrap.success {
+  background: rgba(46, 213, 115, 0.15);
+  border-color: rgba(46, 213, 115, 0.35);
+  color: #2ed573;
+  animation: successPop 0.4s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.clip-proc-icon-wrap.error {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.35);
+  color: #e74c3c;
+}
+
+@keyframes successPop {
+  from { transform: scale(0.6); }
+  to   { transform: scale(1); }
+}
+
+/* Spinner dentro del proc modal hereda el spinner existente */
+.clip-proc-icon-wrap .spinner {
+  width: 26px;
+  height: 26px;
+  border-width: 2px;
+}
+
+.clip-proc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.clip-proc-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  text-align: center;
+  line-height: 1.5;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.clip-proc-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.clip-proc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #ff8a65);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.6s ease;
+}
+
+.clip-proc-close-btn {
+  margin-top: 4px;
+  padding: 9px 28px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.clip-proc-close-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+
+/* ============================================================
+   DESCARGA SECUENCIAL — item activo
+   ============================================================ */
+.clip-item.downloading {
+  border-color: rgba(231, 76, 60, 0.45);
+  background: rgba(231, 76, 60, 0.07);
+  box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.2) inset;
+}
+
+.clip-item.downloading .clip-action-btn[data-action="download"] {
+  background: rgba(231, 76, 60, 0.18);
+  border-color: rgba(231, 76, 60, 0.4);
+  color: #e74c3c;
+  animation: pulseDownload 0.9s ease-in-out infinite;
+}
+
+@keyframes pulseDownload {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
 }

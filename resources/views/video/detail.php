@@ -45,50 +45,44 @@
 <?php endif; ?>
 
 
-<style>
-  html, body {
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    background: #000 !important;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior: none;
-  }
-  .container, .container-fluid, .container-xl, .container-lg,
-  .wrapper, .page-wrapper, .main-wrapper, .content-wrapper,
-  .site-wrapper, .layout-wrapper, .main-content, .page-content,
-  #wrapper, #container, #page, #main, #content, #app, #root,
-  [class*="container"], [class*="wrapper"] {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  header, nav, footer, .site-nav, .site-footer,
-  .page-header, .page-header-detail, .navbar, .topbar {
-    display: none !important;
-  }
-  .detail-content {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    max-width: 100vw !important;
-    z-index: 9000 !important;
-    background: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    -webkit-overflow-scrolling: touch;
-  }
-</style>
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-page.css?v=1.0" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=10.0" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=13.0" />
 
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=4.0" />
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=3.0" />
+<!-- Fix Android: calcula la altura real del viewport sin la barra del navegador -->
+<script>
+(function () {
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isAndroid = /Android/i.test(navigator.userAgent);
+  
+  // Agregar clase al body para CSS específico
+  if (isAndroid) {
+    document.documentElement.classList.add('is-android');
+  }
+  if (isIOS) {
+    document.documentElement.classList.add('is-ios');
+  }
+  
+  // Siempre calcular --real-vh (incluido iOS)
+  function setRealVH() {
+    var vh = window.innerHeight;
+    document.documentElement.style.setProperty('--real-vh', vh + 'px');
+    document.documentElement.style.setProperty('--android-vh', vh + 'px');
+  }
+  setRealVH();
+  window.addEventListener('resize', setRealVH, { passive: true });
+  window.addEventListener('orientationchange', function () {
+    setTimeout(setRealVH, 200);
+  }, { passive: true });
+  
+  // Fix adicional para Android: actualizar después de que el teclado se cierre
+  if (isAndroid) {
+    window.addEventListener('focusout', function() {
+      setTimeout(setRealVH, 300);
+    }, { passive: true });
+  }
+}());
+</script>
 
 <div class="detail-content">
 
@@ -118,7 +112,7 @@
       <!-- RIEL IZQUIERDO  -->
       <aside class="player-rail player-rail-left" aria-label="Controles izquierdos">
 
-        <!-- Volver -->
+        <!-- Volver — único botón en la parte superior -->
         <a href="<?= $baseUrl ?>/index.php"
            class="rail-btn-back"
            title="Volver"
@@ -126,50 +120,17 @@
           <i class="fas fa-arrow-left"></i>
         </a>
 
-        <!-- Retroceder 10s -->
-        <button class="rail-btn" id="rewindBtn" title="Retroceder 10s" aria-label="Retroceder 10 segundos">
-          <i class="fas fa-undo"></i>
-        </button>
-
-      </aside>
-
-      <!-- RIEL DERECHO -->
-      <aside class="player-rail player-rail-right" aria-label="Controles derechos">
-
-        <!-- Adelantar 10s -->
-        <button class="rail-btn" id="forwardBtn" title="Adelantar 10s" aria-label="Adelantar 10 segundos">
-          <i class="fas fa-redo"></i>
-        </button>
+        <!-- Spacer: empuja el grupo inferior hacia abajo -->
+        <div class="rail-spacer"></div>
 
         <!-- Pantalla completa -->
         <button class="rail-btn" id="railFullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
           <i class="fas fa-expand"></i>
         </button>
 
-        <!-- Clips grabados -->
-        <button class="rail-btn"
-                id="clipsBtn"
-                title="Mis clips"
-                aria-label="Ver clips grabados">
-          <i class="fas fa-film"></i>
-          <span class="badge-count" id="clipsBadge">0</span>
-        </button>
-
-        <div class="rail-sep"></div>
-
-        <!-- Compartir -->
-        <button class="rail-btn accent"
-                id="shareMainTrigger"
-                title="Compartir"
-                aria-label="Compartir video">
-          <i class="fas fa-share-alt"></i>
-        </button>
-
-    
-
         <!-- Velocidad -->
         <div class="speed-control">
-          <button class="rail-btn" id="speedBtn" title="Velocidad" aria-label="Velocidad de reproducción">
+          <button class="rail-btn" id="speedBtn" title="Velocidad" aria-label="Velocidad de reproduccion">
             <span class="speed-text">1x</span>
           </button>
           <div class="speed-menu" id="speedMenu">
@@ -183,7 +144,42 @@
           </div>
         </div>
 
+        <!-- Retroceder 10s -->
+        <button class="rail-btn" id="rewindBtn" title="Retroceder 10s" aria-label="Retroceder 10 segundos">
+          <i class="fas fa-backward"></i>
+        </button>
+
+      </aside>
+
+      <!-- RIEL DERECHO -->
+      <aside class="player-rail player-rail-right" aria-label="Controles derechos">
+
+        <!-- Spacer: ocupa todo el espacio superior -->
         <div class="rail-spacer"></div>
+
+        <!-- Compartir — más arriba -->
+        <button class="rail-btn accent"
+                id="shareMainTrigger"
+                title="Compartir"
+                aria-label="Compartir video">
+          <i class="fas fa-share-alt"></i>
+        </button>
+
+        <div class="rail-sep"></div>
+
+        <!-- Clips grabados -->
+        <button class="rail-btn"
+                id="clipsBtn"
+                title="Mis clips"
+                aria-label="Ver clips grabados">
+          <i class="fas fa-film"></i>
+          <span class="badge-count" id="clipsBadge">0</span>
+        </button>
+
+        <!-- Adelantar 10s — justo encima de la barra -->
+        <button class="rail-btn" id="forwardBtn" title="Adelantar 10s" aria-label="Adelantar 10 segundos">
+          <i class="fas fa-forward"></i>
+        </button>
 
       </aside>
 
@@ -432,7 +428,9 @@
 // Pasar cámaras disponibles al JavaScript
 window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
 </script>
-<script src="<?= $baseUrl ?>/public/js/video-player.js?v=4.0"></script>
+<!-- Detectar Android para aplicar estilos sólo en ese OS -->
+<script src="<?= $baseUrl ?>/public/js/platform-detect.js?v=2.0"></script>
+<script src="<?= $baseUrl ?>/public/js/video-player.js?v=8.0"></script>
 <?php if (!empty($requiresPin) && empty($hasAccess)): ?>
 <script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.0"></script>
 <?php endif; ?>

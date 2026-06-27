@@ -1,0 +1,58 @@
+/* ============================================================
+   VIDEO DETAIL PAGE — Aislamiento de layout global
+   Neutraliza contenedores, barras y nav del sitio para que
+   la página de detalle sea un reproductor de pantalla completa.
+   NO modificar sin entender el impacto en el layout del sitio.
+   ============================================================ */
+
+/* 1. Reset base */
+html, body {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  background: #000 !important;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* 2. Neutralizar contenedores del framework/theme */
+.container, .container-fluid, .container-xl, .container-lg,
+.wrapper, .page-wrapper, .main-wrapper, .content-wrapper,
+.site-wrapper, .layout-wrapper, .main-content, .page-content,
+#wrapper, #container, #page, #main, #content, #app, #root,
+[class*="container"], [class*="wrapper"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 3. Ocultar chrome del sitio */
+header, nav, footer, .site-nav, .site-footer,
+.page-header, .page-header-detail, .navbar, .topbar {
+  display: none !important;
+}
+
+/* 4. Contenedor principal — pantalla completa fija
+   --real-vh es calculado por JS en Android para excluir
+   la barra de dirección dinámica del navegador.
+   En iOS se usa -webkit-fill-available (ver video-detail-responsive.css). */
+.detail-content {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;          /* fallback */
+  height: 100dvh !important;         /* navegadores modernos */
+  height: var(--real-vh, 100dvh) !important; /* Android via JS */
+  max-width: 100vw !important;
+  max-height: var(--real-vh, 100dvh) !important;
+  z-index: 9000 !important;
+  background: #000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  -webkit-overflow-scrolling: touch;
+}
