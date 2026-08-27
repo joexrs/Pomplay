@@ -115,6 +115,12 @@ if ($requestPath === '/api/create-clip' && $method === 'POST') {
     return;
 }
 
+// API de Reproducciones (tracking de plays para estadisticas)
+if ($requestPath === '/api/log-play' && $method === 'POST') {
+    $controllers['apiPlay']->log();
+    return;
+}
+
 // Proxy de descarga de clips (fuerza descarga como archivo, resuelve cross-origin)
 if ($requestPath === '/api/download-clip' && $method === 'GET') {
     $controllers['apiClip']->download();

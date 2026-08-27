@@ -184,6 +184,52 @@ final class EstadisticasRepository
         }
     }
 
+    public function logReproduccion(
+        ?string $codigoVideo,
+        ?int    $idLocal,
+        ?string $codigoCancha,
+        ?string $ipAddress = null,
+        ?string $userAgent = null
+    ): void {
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO reproduccion_video
+                    (codigo_video, id_local, codigo_cancha, ip_address, user_agent)
+                 VALUES
+                    (:codigo_video, :id_local, :codigo_cancha, :ip, :ua)'
+            );
+            $stmt->execute([
+                ':codigo_video'  => $codigoVideo ?: null,
+                ':id_local'      => $idLocal,
+                ':codigo_cancha' => $codigoCancha ?: null,
+                ':ip'            => $ipAddress,
+                ':ua'            => $userAgent !== null ? mb_substr($userAgent, 0, 255) : null,
+            ]);
+        } catch (PDOException $e) {
+            error_log('EstadisticasRepository::logReproduccion error: ' . $e->getMessage());
+            // No interrumpir la reproducción pública si la tabla aún no existe
+        }
+    }
+
+    public function totalReproduccionesMes(string $mes, ?int $idLocal = null): int
+    {
+        return $this->totalMes('reproduccion_video', 'creado_en', $mes, $idLocal);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function reproduccionesPorCancha(string $mes, ?int $idLocal = null): array
+    {
+        return $this->queryPorCancha(
+            'reproduccion_video rv',
+            'rv.id_reproduccion',
+            'rv.creado_en',
+            'rv.id_local',
+            'rv.codigo_cancha',
+            $mes,
+            $idLocal
+        );
+    }
+
     /** @return list<array<string, mixed>> */
     private function queryPorCancha(
         string $fromAlias,
@@ -205,7 +251,7 @@ final class EstadisticasRepository
                  FROM {$fromAlias}
                  LEFT JOIN locales l ON {$localField} = l.id_local
                  LEFT JOIN cancha c
-                   ON {$canchaField} = c.codigo_cancha
+                   ON {$canchaField} COLLATE utf8mb4_general_ci = c.codigo_cancha
                   AND c.id_local = {$localField}
                  WHERE {$dateField} >= :inicio
                    AND {$dateField} < :fin";

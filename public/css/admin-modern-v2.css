@@ -1248,7 +1248,7 @@ ul.treeview-menu { list-style: none; padding: 0; padding-left: 24px; display: no
   display: block;
   font-size: 0.72rem;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: #fff;
   margin-bottom: 2px;
 }
 

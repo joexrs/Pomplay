@@ -16,10 +16,12 @@ $estadisticas = new EstadisticasRepository($pdo);
 $totalBusquedas   = $estadisticas->totalBusquedasMes($mesSeleccionado);
 $totalClips       = $estadisticas->totalClipsMes($mesSeleccionado);
 $totalGrabaciones = $estadisticas->totalGrabacionesMes($mesSeleccionado);
+$totalReproducciones = $estadisticas->totalReproduccionesMes($mesSeleccionado);
 
-$busquedasPorCancha   = $estadisticas->busquedasPorCancha($mesSeleccionado);
-$clipsPorCancha       = $estadisticas->clipsPorCancha($mesSeleccionado);
-$grabacionesPorCancha = $estadisticas->grabacionesPorCancha($mesSeleccionado);
+$busquedasPorCancha      = $estadisticas->busquedasPorCancha($mesSeleccionado);
+$clipsPorCancha          = $estadisticas->clipsPorCancha($mesSeleccionado);
+$grabacionesPorCancha    = $estadisticas->grabacionesPorCancha($mesSeleccionado);
+$reproduccionesPorCancha = $estadisticas->reproduccionesPorCancha($mesSeleccionado);
 
 $mesesNombres = [
     '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
@@ -109,6 +111,13 @@ function renderCanchaRanking(array $items, string $emptyIcon, string $emptyText)
   <!-- Totales del mes -->
   <div class="dash-stats">
     <div class="dash-stat-card" style="cursor: default;">
+      <div class="dash-stat-icon"><i class="bi bi-play-circle"></i></div>
+      <div class="dash-stat-info">
+        <h3><?= $totalReproducciones ?></h3>
+        <p>Reproducciones</p>
+      </div>
+    </div>
+    <div class="dash-stat-card" style="cursor: default;">
       <div class="dash-stat-icon"><i class="bi bi-search"></i></div>
       <div class="dash-stat-info">
         <h3><?= $totalBusquedas ?></h3>
@@ -172,6 +181,20 @@ function renderCanchaRanking(array $items, string $emptyIcon, string $emptyText)
             $grabacionesPorCancha,
             'bi-camera-video',
             'Sin grabaciones este mes'
+        ); ?>
+      </div>
+    </div>
+
+    <div class="top-canchas-card">
+      <div class="card-header">
+        <h3 class="card-title">Reproducciones</h3>
+        <div class="card-subtitle">Por local y cancha · <?= htmlspecialchars($mesLabel) ?></div>
+      </div>
+      <div class="canchas-list">
+        <?php renderCanchaRanking(
+            $reproduccionesPorCancha,
+            'bi-play-circle',
+            'Sin reproducciones este mes'
         ); ?>
       </div>
     </div>

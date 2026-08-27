@@ -8,6 +8,7 @@ use App\Controllers\Api\CourtController;
 use App\Controllers\Api\HourController;
 use App\Controllers\Api\LocalController;
 use App\Controllers\Api\ClipController;
+use App\Controllers\Api\PlayController;
 use App\Controllers\Api\VideoPinController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
@@ -42,5 +43,6 @@ return [
     'apiHour'  => new HourController($videoRepository),
     'apiVideoPin' => new VideoPinController($videoPinRepository),
     'apiClip'          => new ClipController($estadisticasRepository),
+    'apiPlay'          => new PlayController($estadisticasRepository),
 ];
 

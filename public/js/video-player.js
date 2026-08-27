@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function () {
+﻿document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
   const videoPlayer = document.getElementById('videoPlayer');
@@ -1555,6 +1555,36 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Exponer renderClipsList globalmente ──────────────────
   window.renderClipsList = renderClipsList;
 
+  // ── Tracking de reproducción (estadísticas) ───────────────
+  // Solo registra una vez por sesión de navegador por video para
+  // evitar conteos duplicados al pausar/reanudar o cambiar cámara.
+  (function initPlayTracking() {
+    var pomplayVideo = window.POMPLAY_VIDEO || {};
+    var trackKey = 'pomplay_played_' + (pomplayVideo.codigo || '');
+
+    // Si ya se registró en esta sesión de pestaña, no volver a hacerlo
+    if (sessionStorage.getItem(trackKey)) return;
+
+    function sendPlay() {
+      if (sessionStorage.getItem(trackKey)) return;
+      sessionStorage.setItem(trackKey, '1');
+
+      var base = window.POMPLAY_BASE || '';
+      fetch(base + '/api/log-play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigoVideo:  pomplayVideo.codigo       || null,
+          idLocal:      pomplayVideo.id_local      || null,
+          codigoCancha: pomplayVideo.codigo_cancha || null,
+        }),
+        keepalive: true,
+      }).catch(function() { /* fallo silencioso */ });
+    }
+
+    // 'playing' confirma que el video realmente arrancó a reproducirse
+    videoPlayer.addEventListener('playing', sendPlay, { once: true });
+  }());
   // ── Init ──────────────────────────────────────────────────
   updateVolumeIcon();
   updateClipsBadge();
