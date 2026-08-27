@@ -17,15 +17,15 @@ if ($baseUrl === '/') {
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $errors = [];
 
-    $codigo_cancha = trim($_POST['codigo_cancha'] ?? '');
+    $id_cancha = trim($_POST['id_cancha'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $id_local = $_POST['id_local'] ?? '';
     $tipo_cancha = trim($_POST['tipo_cancha'] ?? '');
     $ubicacion = trim($_POST['ubicacion'] ?? '');
     $imagen_url = null;
 
-    if (empty($codigo_cancha)) {
-        $errors[] = "El código de la cancha es obligatorio";
+    if (empty($id_cancha) || !is_numeric($id_cancha)) {
+        $errors[] = "Cancha inválida";
     }
 
     if (empty($descripcion)) {
@@ -58,7 +58,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if (empty($errors)) {
             $extension = pathinfo($_FILES['imagen_cancha']['name'], PATHINFO_EXTENSION);
-            $fileName = 'cancha_' . $codigo_cancha . '_' . time() . '.' . strtolower($extension);
+            $fileName = 'cancha_' . $id_cancha . '_' . time() . '.' . strtolower($extension);
             $destination = $uploadDir . $fileName;
 
             if (!move_uploaded_file($_FILES['imagen_cancha']['tmp_name'], $destination)) {
@@ -72,14 +72,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!empty($errors)) {
         session_start();
         $_SESSION['error'] = implode(", ", $errors);
-        header("Location: $baseUrl/admin/canchas/edit.php?codigo_cancha=" . urlencode($codigo_cancha));
+        header("Location: $baseUrl/admin/canchas/edit.php?id_cancha=" . urlencode($id_cancha));
         exit();
     }
 
     try {
-        $stmt = $pdo->prepare("CALL UpdateCanchaLocal(:codigo_cancha, :descripcion, :id_local, :imagen_url, :tipo_cancha, :ubicacion)");
+        $stmt = $pdo->prepare("CALL UpdateCanchaLocal(:id_cancha, :descripcion, :id_local, :imagen_url, :tipo_cancha, :ubicacion)");
         $stmt->execute([
-            ':codigo_cancha' => $codigo_cancha,
+            ':id_cancha' => (int)$id_cancha,
             ':descripcion' => $descripcion,
             ':id_local' => (int)$id_local,
             ':imagen_url' => $imagen_url,
@@ -94,7 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } catch (PDOException $e) {
         session_start();
         $_SESSION['error'] = "Error al actualizar la cancha: " . $e->getMessage();
-        header("Location: $baseUrl/admin/canchas/edit.php?codigo_cancha=" . urlencode($codigo_cancha));
+        header("Location: $baseUrl/admin/canchas/edit.php?id_cancha=" . urlencode($id_cancha));
         exit();
     }
 }

@@ -74,15 +74,26 @@ try {
     $stmtPrecio->execute([':tipo' => $membership['tipo_membresia']]);
     $precioMembresia = $stmtPrecio->fetch(PDO::FETCH_ASSOC);
 
+    // Flag para detectar si la membresía actual no tiene precio
+    $membresiaActualSinPrecio = false;
     if (!$precioMembresia) {
-        $_SESSION['error'] = 'No se encontró información de precio para esta membresía';
-        header('Location: ../locales/index.php');
-        exit;
+        $membresiaActualSinPrecio = true;
+        // Usar la primera membresía disponible como referencia si no encuentra la actual
+        $stmtTodasMembresias = $pdo->query("SELECT * FROM precios_membresias WHERE activo = 1 ORDER BY duracion_meses ASC LIMIT 1");
+        $precioMembresia = $stmtTodasMembresias->fetch(PDO::FETCH_ASSOC);
+        $stmtTodasMembresias->closeCursor();
     }
 
     // Obtener todas las membresías disponibles para el selector
     $stmtTodasMembresias = $pdo->query("SELECT * FROM precios_membresias WHERE activo = 1 ORDER BY duracion_meses ASC");
     $todasMembresias = $stmtTodasMembresias->fetchAll(PDO::FETCH_ASSOC);
+
+    // Verificar que hay al menos una membresía disponible
+    if (empty($todasMembresias)) {
+        $_SESSION['error'] = 'No hay membresías disponibles activas en el sistema';
+        header('Location: ../locales/index.php');
+        exit;
+    }
 
     // Verificar si la membresía está vencida
     $fechaVencimiento = new DateTime($membership['fecha_vencimiento']);
@@ -105,6 +116,13 @@ try {
   </div>
 
   <div class="renew-container">
+    <?php if ($membresiaActualSinPrecio): ?>
+      <div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.3);color:#FFC107;padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-exclamation-triangle" style="font-size:1.2rem;"></i>
+        <span><strong>Advertencia:</strong> La membresía actual de este local no tiene un precio activo registrado. Por favor, selecciona una membresía disponible para proceder con la renovación.</span>
+      </div>
+    <?php endif; ?>
+
     <div class="renew-card">
       <div class="renew-header">
         <div class="renew-icon <?= $estaVencida ? 'expired' : 'active' ?>">
@@ -505,9 +523,7 @@ try {
     font-size: 0.9rem;
   }
 }
-    </div>
-  </div>
-</main>
+</style>
 
 <style>
 /* Container Principal */

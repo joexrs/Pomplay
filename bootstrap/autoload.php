@@ -1,5 +1,8 @@
 <?php
 
+// Establecer zona horaria oficial a América/Lima
+date_default_timezone_set('America/Lima');
+
 // Cargar Composer autoloader
 $composerAutoload = __DIR__ . '/../vendor/autoload.php';
 if (file_exists($composerAutoload)) {

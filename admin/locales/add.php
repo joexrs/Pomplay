@@ -37,7 +37,7 @@ $stmtPropietarios->closeCursor();
       <?php unset($_SESSION['error']); ?>
     <?php endif; ?>
 
-    <form method="POST" action="procesos/procesar_local.php" class="adm-form">
+    <form method="POST" action="procesos/procesar_local.php" class="adm-form" enctype="multipart/form-data">
       <!-- Card: Información del Local -->
       <div class="adm-form-card" style="margin-bottom:24px;">
         <div class="adm-form-heading" style="margin-top:0;">
@@ -127,6 +127,15 @@ $stmtPropietarios->closeCursor();
           <input type="password" id="nuevo_propietario_password" name="nuevo_propietario_password" class="adm-input" 
                  placeholder="Mínimo 6 caracteres" minlength="6">
         </div>
+
+        <div class="adm-field">
+          <label class="adm-label" for="nuevo_propietario_logo">Logo del negocio (opcional)</label>
+          <input type="file" id="nuevo_propietario_logo" name="nuevo_propietario_logo" class="adm-input" 
+                 accept="image/png, image/jpeg, image/webp">
+          <small style="color:var(--color-text-muted);font-size:0.8rem;margin-top:4px;display:block;">
+            <i class="fas fa-info-circle"></i> PNG, JPG o WEBP. Máximo 2MB.
+          </small>
+        </div>
       </div>
 
       <!-- Card: Membresía -->
@@ -160,8 +169,9 @@ $stmtPropietarios->closeCursor();
 
       <!-- Acciones -->
       <div class="adm-form-actions">
-        <button type="submit" class="btn-adm-save">
-          <i class="fas fa-save"></i> Guardar Local
+        <button type="submit" id="btn-submit-local" class="btn-adm-save">
+          <i class="fas fa-save" id="btn-icon"></i>
+          <span id="btn-text"> Guardar Local</span>
         </button>
         <a href="<?= $baseUrl ?>/admin/locales/index.php" class="btn-adm-cancel">
           <i class="fas fa-times"></i> Cancelar
@@ -195,8 +205,16 @@ function calcularFechaVencimiento() {
 // Calcular fecha inicial
 calcularFechaVencimiento();
 
+// Prevenir doble submit
+let formSubmitting = false;
+
 // Validación del formulario
 document.querySelector('form').addEventListener('submit', function(e) {
+  // Bloquear si ya se está enviando
+  if (formSubmitting) {
+    e.preventDefault();
+    return false;
+  }
   const propietarioExistente = document.getElementById('id_propietario').value;
   const nuevoNombre = document.getElementById('nuevo_propietario_nombre').value.trim();
   const nuevoApellidos = document.getElementById('nuevo_propietario_apellidos').value.trim();
@@ -239,6 +257,15 @@ document.querySelector('form').addEventListener('submit', function(e) {
     alert('La fecha de vencimiento debe ser posterior a la fecha de inicio');
     return false;
   }
+
+  // Marcar como enviando y deshabilitar botón
+  formSubmitting = true;
+  const btn = document.getElementById('btn-submit-local');
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  btn.style.cursor = 'not-allowed';
+  document.getElementById('btn-icon').className = 'fas fa-spinner fa-spin';
+  document.getElementById('btn-text').textContent = ' Guardando...';
 });
 </script>
 

@@ -8,10 +8,10 @@
 
             <!-- FILTRO 1: LOCAL -->
             <div class="search-field">
-                <select id="search_local" class="glass-select">
+                <select id="search_local" name="search_local" class="glass-select">
                     <option value="">LOCAL</option>
                     <?php foreach ($locales as $loc): ?>
-                        <option value="<?= htmlspecialchars((string) $loc['id_local']) ?>" data-es-privado="<?= (int) ($loc['es_privado'] ?? 0) ?>">
+                        <option value="<?= htmlspecialchars((string) $loc['id_local']) ?>" data-es-privado="<?= (int) ($loc['es_privado'] ?? 0) ?>" <?= isset($searchLocal) && $searchLocal === (int) $loc['id_local'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars(mb_strtoupper($loc['nombre_local'], 'UTF-8')) ?>
                         </option>
                     <?php endforeach; ?>
@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const fechaRealInp   = document.getElementById('search_date_real');
     const horaSel        = document.getElementById('search_hora');
     const fechaLabel     = document.getElementById('date-label');
+    const selectedLocal  = <?= isset($searchLocal) ? (int) $searchLocal : 'null' ?>;
+    const selectedCancha = <?= $searchCancha !== null ? json_encode($searchCancha, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) : 'null' ?>;
+    const selectedHora   = <?= $searchHora !== null ? json_encode($searchHora, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) : 'null' ?>;
 
     /* ----------------------------------------------------------
        Helpers
@@ -99,7 +102,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function refreshHoras() {
         const cancha = canchaSel.value;
-        const fecha  = fechaHiddenInp.value;
+        const local   = localSel.value;
+        const fecha   = fechaHiddenInp.value;
+        const currentSelectedHora = selectedHora;
 
         if (!fecha) {
             horaSel.disabled = true;
@@ -108,6 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const params = new URLSearchParams();
+        if (local) params.set('local', local);
         if (cancha) params.set('cancha', cancha);
         params.set('fecha', fecha);
 
@@ -122,6 +128,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     const opt = document.createElement('option');
                     opt.value = h.hora;
                     opt.textContent = h.hora_rango;
+                    if (currentSelectedHora && String(h.hora) === currentSelectedHora) {
+                        opt.selected = true;
+                    }
                     horaSel.appendChild(opt);
                 });
                 horaSel.disabled = false;
@@ -165,9 +174,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     const opt = document.createElement('option');
                     opt.value = c.codigo_cancha;
                     opt.textContent = (c.descripcion || '').toUpperCase();
+                    if (selectedCancha && selectedCancha === c.codigo_cancha) {
+                        opt.selected = true;
+                    }
                     canchaSel.appendChild(opt);
                 });
                 canchaSel.disabled = false;
+                if (selectedCancha) {
+                    refreshHoras();
+                }
             })
             .catch(() => {
                 resetSelect(canchaSel, 'CANCHA');
@@ -177,8 +192,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
     canchaSel.addEventListener('change', refreshHoras);
 
-    // Si la página cargó con fecha ya puesta (vuelta de búsqueda)
-    if (fechaHiddenInp.value) {
+    // Restaurar selección cuando la página carga con filtros previos
+    if (selectedLocal) {
+        localSel.value = selectedLocal;
+        resetSelect(canchaSel, 'Cargando...');
+        fetch(`${BASE}/api/canchas-por-local?local=${selectedLocal}`)
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+            .then(data => {
+                resetSelect(canchaSel, 'CANCHA');
+                (data || []).forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.codigo_cancha;
+                    opt.textContent = (c.descripcion || '').toUpperCase();
+                    if (selectedCancha && selectedCancha === c.codigo_cancha) {
+                        opt.selected = true;
+                    }
+                    canchaSel.appendChild(opt);
+                });
+                canchaSel.disabled = false;
+                if (fechaHiddenInp.value) {
+                    refreshHoras();
+                }
+            })
+            .catch(() => {
+                resetSelect(canchaSel, 'CANCHA');
+                canchaSel.disabled = false;
+                if (fechaHiddenInp.value) {
+                    updateFechaLabel();
+                    horaSel.disabled = false;
+                    refreshHoras();
+                }
+            });
+    } else if (fechaHiddenInp.value) {
         updateFechaLabel();
         horaSel.disabled = false;
         refreshHoras();

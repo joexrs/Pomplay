@@ -1,5 +1,3 @@
-
-
 .video-player-wrap {
   position: relative;
   background: #000;
@@ -19,7 +17,7 @@
 .video-player {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -45,46 +43,102 @@
   pointer-events: auto;
 }
 
-.progress-bar-container { margin-bottom: 12px; }
+.bar-progress-container { margin-bottom: 12px; }
 
-.progress-bar {
+.bar-progress {
   width: 100%;
   height: 3px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   cursor: pointer;
   position: relative;
-  transition: height 0.15s ease;
+  transition: height 0.1s ease;
+
 }
 
-.progress-bar:hover { height: 5px; }
+.bar-progress:hover,
+.bar-progress.scrubbing { height: 5px; }
 
-.progress-filled {
-  height: 100%;
-  background: var(--accent, #e74c3c);
+/* Área táctil ampliada en móvil sin engordar la barra visual:
+   padding-block invisible; background-clip: content-box asegura que
+   solo el content-box (3px) recibe el color de fondo.
+   NO se usa margin negativo porque en flex-column puede colapsar espacio
+   con elementos hermanos y verse gruesa visualmente. */
+@media (hover: none) {
+  .bar-progress {
+    padding: 10px 0;
+    background-clip: content-box;
+    /* height visual sigue siendo 3px gracias a background-clip */
+  }
+}
+
+/* Buffer descargado — se pinta por debajo de progress-filled.
+   Alto FIJO (no 100%): en position:absolute, height:100% se mide
+   contra el padding-box del padre, así que heredaría el padding
+   táctil invisible de abajo y se vería gruesa en Android. */
+.bar-buffered {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
   width: 0%;
-  transition: width 0.1s linear;
-  position: relative;
   pointer-events: none;
+  transition: width 0.2s ease, height 0.1s ease;
 }
 
-.progress-filled::after {
-  content: '';
+.bar-filled {
   position: absolute;
-  right: -5px;
   top: 50%;
+  left: 0;
+  height: 3px;
   transform: translateY(-50%);
-  width: 11px;
-  height: 11px;
+  background: linear-gradient(90deg, var(--accent, #e74c3c), #ff6b5b);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.1s linear, height 0.1s ease;
+  pointer-events: none;
+  box-shadow: 0 0 6px rgba(231, 76, 60, 0.5);
+}
+
+.bar-progress:hover .bar-filled,
+.bar-progress.scrubbing .bar-filled {
+  height: 5px;
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.7);
+}
+
+.bar-progress:hover .bar-buffered,
+.bar-progress.scrubbing .bar-buffered {
+  height: 5px;
+}
+
+/* Pomo de arrastre — aparece al hover o al arrastrar (clase .scrubbing
+   agregada por JS). Estilo: círculo blanco con borde accent + glow. */
+.bar-handle {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 14px;
+  height: 14px;
   background: #fff;
   border-radius: 50%;
+  box-shadow: 0 0 0 2.5px var(--accent, #e74c3c),
+              0 0 8px rgba(231, 76, 60, 0.5);
+  transform: translate(-50%, -50%) scale(0);
   opacity: 0;
-  transition: opacity 0.2s;
-  box-shadow: 0 0 0 2px var(--accent, #e74c3c);
+  transition: transform 0.15s cubic-bezier(.34, 1.56, .64, 1),
+              opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 2;
 }
 
-.progress-bar:hover .progress-filled::after { opacity: 1; }
+.bar-progress:hover .bar-handle,
+.bar-progress.scrubbing .bar-handle {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
 
 .time-display {
   display: flex;
@@ -159,12 +213,7 @@
   font-size: 15px;
 }
 
-/* ============================================================
-   BOTÓN GRABAR (centro) — diseño según imagen:
-   - círculo rojo con borde blanco
-   - ícono sólido
-   - durante grabación: halo pulsante + texto "REC HH:MM"
-   ============================================================ */
+
 .record-center-btn {
   width: 56px;
   height: 56px;
@@ -546,7 +595,9 @@
 .clip-proc-modal {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  /* Mismo valor que .mobile-share-modal / .clips-modal, por encima
+     del .fullscreen-pseudo de iOS (99990) */
+  z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -697,4 +748,232 @@
 @keyframes pulseDownload {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.45; }
+}
+
+/* ============================================================
+   SELECTOR DE CÁMARAS — Segmented control tipo pastilla
+   ============================================================ */
+.camera-selector {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  left: auto;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  pointer-events: auto;
+}
+
+/* Cada opción del segmented control */
+.camera-selector .cam-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+  min-width: 56px;
+  min-height: 30px;
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.4px;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 1;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-selector .cam-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Estado activo: "thumb" de la pastilla */
+.camera-selector .cam-btn.active {
+  color: #fff;
+  background: var(--accent, #e74c3c);
+  box-shadow: 0 2px 10px rgba(231, 76, 60, 0.5),
+              0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover en activo no mueve nada */
+.camera-selector .cam-btn.active:hover {
+  background: var(--accent, #e74c3c);
+  filter: brightness(1.1);
+}
+
+@media (max-width: 768px) {
+  .camera-selector {
+    top: 12px;
+    right: 12px;
+    padding: 3px;
+  }
+  .camera-selector .cam-btn {
+    padding: 5px 13px;
+    font-size: 11px;
+    min-width: 50px;
+    min-height: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .camera-selector {
+    top: 10px;
+    right: 8px;
+    padding: 2px;
+  }
+  .camera-selector .cam-btn {
+    padding: 5px 11px;
+    font-size: 11px;
+    min-width: 44px;
+    min-height: 26px;
+  }
+}
+
+
+
+/* ============================================================
+   PSEUDO-FULLSCREEN (iOS Safari)
+   Cubre toda la pantalla con position:fixed manteniendo todos
+   los controles personalizados visibles dentro del wrapper.
+   ============================================================ */
+
+/* Bloquear scroll del body mientras el pseudo-FS está activo */
+html.pseudo-fs-active {
+  overflow: hidden;
+  height: 100%;
+}
+html.pseudo-fs-active body {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* El wrapper ocupa toda la pantalla */
+.video-player-wrap.fullscreen-pseudo {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 99990 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  background: #000 !important;
+}
+
+/* El video ocupa todo el espacio disponible */
+.video-player-wrap.fullscreen-pseudo .video-player {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Forzar visibilidad de todos los controles dentro del pseudo-FS */
+.video-player-wrap.fullscreen-pseudo .custom-controls {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.video-player-wrap.fullscreen-pseudo .player-rail {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.video-player-wrap.fullscreen-pseudo .video-top-bar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ============================================================
+   ROTACIÓN FORZADA EN iOS (pseudo-fullscreen)
+   screen.orientation.lock('landscape') NO está soportado en
+   Safari/WebKit (nunca lo estuvo), así que si el teléfono sigue
+   físicamente en portrait, simulamos landscape rotando el wrapper
+   90° con CSS e intercambiando ancho/alto respecto al viewport.
+   El JS agrega/quita .ios-force-rotate según la orientación real
+   del dispositivo (ver 'orientationchange' en video-player.js).
+   ============================================================ */
+.video-player-wrap.fullscreen-pseudo.ios-force-rotate {
+  position: fixed !important;
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  max-width: 100vh !important;
+  max-height: 100vw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+  margin: 0 !important;
+}
+
+/* El <video> y los controles deben llenar el wrapper ya rotado,
+   no el viewport sin rotar */
+.video-player-wrap.fullscreen-pseudo.ios-force-rotate .video-player {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* ============================================================
+   iOS SAFARI — forzar visibilidad de controles
+   @supports (-webkit-touch-callout: none) solo aplica en iOS Safari,
+   ya que es la única plataforma que implementa esa propiedad.
+   iOS puede reportar (hover: hover) incluso en touch, por eso
+   no podemos confiar en el media query hover para iOS.
+   ============================================================ */
+@supports (-webkit-touch-callout: none) {
+  /* Controles inferiores */
+  .custom-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Rieles laterales */
+  .player-rail {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Barra superior */
+  .video-top-bar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Aumentar área táctil de botones para iOS */
+  .control-btn,
+  .rail-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Pomo de la barra de progreso: en iOS Safari :hover puede
+     reportarse como verdadero incluso en touch, o directamente
+     nunca dispararse — no es fiable. Igual que con custom-controls
+     arriba, forzamos su visibilidad aquí en vez de depender de
+     :hover/.scrubbing. */
+  .bar-handle {
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+
+  /* Padding inferior seguro para el notch/home indicator de iPhone */
+  .custom-controls {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }

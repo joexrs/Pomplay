@@ -1,5 +1,6 @@
 <?php
 include '../../../conexion.php';
+require_once __DIR__ . '/../../../app/Services/VpsStorageService.php';
 
 // Calcular baseUrl dinámicamente
 $docRoot = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/');
@@ -92,12 +93,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt = $pdo->prepare("CALL InsertCanchaLocal(:codigo_cancha, :descripcion, :id_local, :imagen_url, :tipo_cancha, :ubicacion)");
         $stmt->execute([
             ':codigo_cancha' => $codigo_cancha,
-            ':descripcion' => $descripcion,
-            ':id_local' => (int)$id_local,
-            ':imagen_url' => $imagen_url,
-            ':tipo_cancha' => $tipo_cancha !== '' ? $tipo_cancha : null,
-            ':ubicacion' => $ubicacion !== '' ? $ubicacion : null
+            ':descripcion'   => $descripcion,
+            ':id_local'      => (int)$id_local,
+            ':imagen_url'    => $imagen_url,
+            ':tipo_cancha'   => $tipo_cancha !== '' ? $tipo_cancha : null,
+            ':ubicacion'     => $ubicacion !== '' ? $ubicacion : null
         ]);
+
+        // ── Crear directorio en VPS para la nueva cancha ─────────────────────
+        try {
+            $vpsStorage = new \App\Services\VpsStorageService();
+            $vpsOk = $vpsStorage->createCanchaDirectory((int)$id_local, $codigo_cancha);
+            if (!$vpsOk) {
+                error_log("[VPS] No se pudo crear el directorio para la cancha {$codigo_cancha} del local {$id_local}");
+            }
+        } catch (\Exception $vpsEx) {
+            // No abortar el registro: solo loguear el error
+            error_log("[VPS] Excepción al crear directorio de cancha: " . $vpsEx->getMessage());
+        }
 
         session_start();
         $_SESSION['success'] = "Cancha registrada exitosamente";

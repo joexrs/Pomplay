@@ -124,8 +124,18 @@ if (is_readable($contactConfigPath)) {
             <!-- User menu -->
             <li class="dropdown app-nav-item">
                 <a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Perfil de usuario">
-                   <div class="user-avatar">
-                       <i class="bi bi-person-circle"></i>
+                   <div class="user-avatar" style="overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #ffffff;">
+                       <?php if ($userRole === 'DUEÑO' && !empty($_SESSION['id_propietario'])): ?>
+                           <img src="<?= $baseUrl ?>/public/logo.php?id=<?= (int)$_SESSION['id_propietario'] ?>" 
+                                alt="Avatar" 
+                                style="width: 100%; height: 100%; object-fit: cover;"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+                           <i class="bi bi-person-circle" style="display: none; color: var(--dk-accent);"></i>
+                       <?php else: ?>
+                           <img src="<?= $baseUrl ?>/public/images/pomplay%20logo.png" 
+                                alt="Admin Avatar" 
+                                style="width: 75%; height: 75%; object-fit: contain;">
+                       <?php endif; ?>
                    </div>
                 </a>
                 <ul class="dropdown-menu settings-menu dropdown-menu-right">
@@ -215,6 +225,12 @@ if (is_readable($contactConfigPath)) {
                             <a class="treeview-item <?= strpos($_SERVER['PHP_SELF'], '/locales/') !== false ? 'active' : '' ?>"
                                href="<?= $baseUrl ?>/admin/locales/index.php">
                                <i class="icon bi bi-shop"></i> Locales
+                            </a>
+                        </li>
+                        <li>
+                            <a class="treeview-item <?= strpos($_SERVER['PHP_SELF'], '/estadisticas/') !== false ? 'active' : '' ?>"
+                               href="<?= $baseUrl ?>/admin/estadisticas/index.php">
+                               <i class="icon bi bi-bar-chart"></i> Estadísticas
                             </a>
                         </li>
                         

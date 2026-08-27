@@ -138,7 +138,7 @@ $meses = ['January'=>'enero','February'=>'febrero','March'=>'marzo','April'=>'ab
     <div class="recent-videos-card">
       <div class="card-header">
         <h3 class="card-title">Videos recientes</h3>
-        <a href="videos.php" class="view-all-link">
+        <a href="videos/index.php" class="view-all-link">
           Ver todos <i class="bi bi-arrow-right"></i>
         </a>
       </div>
@@ -171,7 +171,7 @@ $meses = ['January'=>'enero','February'=>'febrero','March'=>'marzo','April'=>'ab
               <td data-label="Fecha" class="td-date"><?= $fd ?></td>
               <td data-label="Acciones">
                 <div class="table-actions">
-                  <a href="edit_video.php?codigo_video=<?= urlencode($rv['codigo_video']) ?>" class="btn-icon btn-icon-edit" title="Editar">
+                  <a href="videos/edit.php?codigo_video=<?= urlencode($rv['codigo_video']) ?>" class="btn-icon btn-icon-edit" title="Editar">
                     <i class="bi bi-pencil"></i>
                   </a>
                 </div>

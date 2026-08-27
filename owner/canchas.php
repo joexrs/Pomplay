@@ -387,7 +387,9 @@ function checkStatus(cod) {
       if (!badge) return;
 
       const activa   = data.activa ?? data.ok ?? false;
-      const grabando = data.grabando ?? false;
+      // grabando_en_bd es la fuente más confiable: si la BD sabe que está grabando,
+      // priorizar ese dato sobre el VPS (que puede fallar por red/capacidad)
+      const grabando = data.grabando || data.grabando_en_bd || false;
 
       // Badge de estado
       badge.className = 'estado-badge ' + (activa ? 'estado-conectada' : 'estado-desconectada');
@@ -399,12 +401,13 @@ function checkStatus(cod) {
       // Indicador de grabación
       if (recInd) recInd.style.display = grabando ? 'inline-flex' : 'none';
 
-      // Botón grabar
+      // Botón grabar: solo se deshabilita si la cámara está DESCONECTADA
       if (btnRec) {
         btnRec.dataset.grabando = grabando ? 'true' : 'false';
         btnRec.classList.toggle('recording', grabando);
-        btnRec.title   = grabando ? 'Detener grabación' : 'Iniciar grabación';
+        btnRec.title    = grabando ? 'Detener grabación' : 'Iniciar grabación';
         btnRec.innerHTML = `<i class="bi bi-${grabando ? 'stop-circle-fill' : 'record-circle'}"></i>`;
+        btnRec.disabled = !activa; // solo deshabilitado si desconectada
       }
     })
     .catch(() => {
@@ -413,6 +416,8 @@ function checkStatus(cod) {
         badge.className = 'estado-badge estado-desconectada';
         badge.innerHTML = '<i class="bi bi-wifi-off"></i><span>Sin respuesta</span>';
       }
+      // NO modificar el botón de grabación si hay error de red:
+      // evita que el usuario vea "no grabando" por un fallo temporal de conexión
     })
     .finally(() => {
       statusInFlight.delete(cod);
@@ -421,30 +426,76 @@ function checkStatus(cod) {
 
 // ── Toggle grabación ──────────────────────────────────────────
 function toggleGrabacion(cod) {
-  const btnRec  = document.querySelector(`#btn-rec-${cod}`);
+  const btnRec   = document.querySelector(`#btn-rec-${cod}`);
   const grabando = btnRec?.dataset.grabando === 'true';
   const action   = grabando ? 'stop_rec' : 'start_rec';
 
-  if (btnRec) { btnRec.disabled = true; btnRec.innerHTML = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div>'; }
+  if (!btnRec) return;
+
+  // Guardar estado anterior para restaurar si falla
+  const htmlAnterior = btnRec.innerHTML;
+
+  // Mostrar spinner en el botón SIN deshabilitarlo (para que siga siendo interactuable si falla)
+  // Temporalmente bloqueamos solo el tiempo del request para evitar doble click
+  btnRec.disabled = true;
+  btnRec.innerHTML = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div>';
+
+  // Safety timeout: si el VPS no responde en 12s, restaurar botón
+  const safetyTimer = setTimeout(() => {
+    btnRec.disabled = false;
+    btnRec.innerHTML = htmlAnterior;
+    mostrarToast('Tiempo de espera agotado. Verifica la conexión con la cámara.', 'error');
+  }, 12000);
 
   fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}`)
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(data => {
+      clearTimeout(safetyTimer);
       if (data.ok) {
+        // Actualizar el botón inmediatamente al nuevo estado sin esperar el polling
+        const nuevoGrabando = !grabando;
+        btnRec.dataset.grabando = nuevoGrabando ? 'true' : 'false';
+        btnRec.classList.toggle('recording', nuevoGrabando);
+        btnRec.title    = nuevoGrabando ? 'Detener grabación' : 'Iniciar grabación';
+        btnRec.innerHTML = `<i class="bi bi-${nuevoGrabando ? 'stop-circle-fill' : 'record-circle'}"></i>`;
+        btnRec.disabled = false; // re-habilitar: la cámara está conectada
+
         mostrarToast(
           grabando ? '⏹ Grabación detenida' : '⏺ Grabación iniciada',
           grabando ? 'info' : 'success'
         );
-        setTimeout(() => checkStatus(cod), 1000);
+        // Polling para sincronizar otros indicadores (badge, rec-indicator)
+        let intentos = 0;
+        const poll = setInterval(() => {
+          intentos++;
+          checkStatus(cod);
+          if (intentos >= 3) clearInterval(poll);
+        }, 1500);
+      } else if (data.already_recording) {
+        // Caso especial: el servidor sabe que ya está grabando aunque el botón no lo reflejaba
+        // Actualizar el botón a estado "grabando" en lugar de mostrar error
+        btnRec.dataset.grabando = 'true';
+        btnRec.classList.add('recording');
+        btnRec.title    = 'Detener grabación';
+        btnRec.innerHTML = '<i class="bi bi-stop-circle-fill"></i>';
+        btnRec.disabled = false;
+        mostrarToast('⚠️ Ya hay una grabación en curso. El botón fue actualizado.', 'warning');
+        checkStatus(cod);
       } else {
         mostrarToast('Error: ' + (data.error || 'No se pudo realizar la acción'), 'error');
-        if (btnRec) btnRec.disabled = false;
+        btnRec.disabled = false;
+        btnRec.innerHTML = htmlAnterior;
         checkStatus(cod);
       }
     })
-    .catch(() => {
+    .catch(err => {
+      clearTimeout(safetyTimer);
       mostrarToast('Error de comunicación con la cámara', 'error');
-      if (btnRec) btnRec.disabled = false;
+      btnRec.disabled = false;
+      btnRec.innerHTML = htmlAnterior;
       checkStatus(cod);
     });
 }
@@ -483,76 +534,94 @@ function abrirPreview(cod) {
     if (lbl) lbl.textContent = cam.nombre || `Cámara ${slot}`;
   });
 
-  // Botones de grabación por cámara
-  renderModalRecButtons();
-
-  // Mostrar modal
+  // Mostrar modal (con botón en estado de carga mientras verificamos)
   document.getElementById('cctvModal').style.display = 'flex';
 
   // Conectar streams
   camsData.forEach((cam, i) => {
     conectarStream(i + 1, cam.go2rtc_stream);
   });
+
+  // Renderizar botón con estado provisional y luego actualizar con dato real del API
+  renderModalRecButtons();
+  actualizarEstadoModal(cod);
+}
+
+// Consulta el estado real al VPS y actualiza el botón del modal
+function actualizarEstadoModal(cod) {
+  if (!cod) return;
+  const btn = document.getElementById('modal-btn-rec');
+  if (!btn) return;
+
+  fetch(`api/cameras.php?action=status&codigo=${encodeURIComponent(cod)}`)
+    .then(r => r.json())
+    .then(data => {
+      // Sincronizar grabando en modalCams con la respuesta real del VPS
+      if (Array.isArray(data.cameras)) {
+        data.cameras.forEach(camStatus => {
+          const cam = modalCams.find(c => (c.posicion ?? 1) == (camStatus._cam_pos ?? 1));
+          if (cam) cam.grabando = (camStatus.grabando) ? 1 : 0;
+        });
+      }
+      // Re-renderizar botón con estado actualizado
+      renderModalRecButtons();
+    })
+    .catch(() => {
+      // En caso de error de red, dejamos el botón con estado provisional
+    });
 }
 
 function renderModalRecButtons() {
   const container = document.getElementById('modal-rec-buttons');
   container.innerHTML = '';
 
-  modalCams.forEach((cam, i) => {
-    const camPos  = cam.posicion ?? (i + 1);
-    const grabando = (cam.grabando == 1);
-    const label   = modalCams.length > 1 ? `Cam ${camPos}` : '';
-    const btn     = document.createElement('button');
-    btn.className = 'btn-modal-rec ' + (grabando ? 'stop' : 'start');
-    btn.id        = `modal-btn-${camPos}`;
-    btn.dataset.grabando = grabando ? 'true' : 'false';
-    btn.dataset.pos = camPos;
-    btn.innerHTML = grabando
-      ? `<i class="bi bi-stop-circle-fill"></i> Detener ${label}`
-      : `<i class="bi bi-record-circle-fill"></i> Grabar ${label}`;
-    btn.onclick = () => toggleGrabacionCam(modalCodigo, camPos, btn);
-    container.appendChild(btn);
-  });
+  // Un único botón: graba/detiene TODAS las cámaras de la cancha
+  // El estado es true si AL MENOS UNA cámara está grabando
+  const grabando = modalCams.some(c => c.grabando == 1);
+
+  const btn = document.createElement('button');
+  btn.className = 'btn-modal-rec ' + (grabando ? 'stop' : 'start');
+  btn.id = 'modal-btn-rec';
+  btn.dataset.grabando = grabando ? 'true' : 'false';
+  btn.innerHTML = grabando
+    ? `<i class="bi bi-stop-circle-fill"></i> Detener grabación`
+    : `<i class="bi bi-record-circle-fill"></i> Iniciar grabación`;
+  btn.onclick = () => toggleGrabacionModal(modalCodigo, btn);
+  container.appendChild(btn);
 }
 
-function toggleGrabacionCam(cod, camPos, btn) {
+function toggleGrabacionModal(cod, btn) {
   const grabando = btn.dataset.grabando === 'true';
   const action   = grabando ? 'stop_rec' : 'start_rec';
 
-  btn.disabled    = true;
-  btn.innerHTML   = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div> Procesando…';
+  const htmlAnterior = btn.innerHTML;
+  btn.disabled  = true;
+  btn.innerHTML = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div> Procesando…';
 
-  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}&cam=${camPos}`)
+  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}`)
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
         const nuevoGrabando = !grabando;
-        btn.dataset.grabando = nuevoGrabando ? 'true' : 'false';
-        const label = modalCams.length > 1 ? `Cam ${camPos}` : '';
-        btn.className  = 'btn-modal-rec ' + (nuevoGrabando ? 'stop' : 'start');
-        btn.innerHTML  = nuevoGrabando
-          ? `<i class="bi bi-stop-circle-fill"></i> Detener ${label}`
-          : `<i class="bi bi-record-circle-fill"></i> Grabar ${label}`;
-        btn.disabled = false;
-
-        // Actualizar estado en modalCams
-        const cam = modalCams.find(c => (c.posicion ?? 1) == camPos);
-        if (cam) cam.grabando = nuevoGrabando ? 1 : 0;
-
-        mostrarToast(nuevoGrabando ? '⏺ Grabación iniciada' : '⏹ Grabación detenida', nuevoGrabando ? 'success' : 'info');
+        // Actualizar estado en modalCams para todas las cámaras
+        modalCams.forEach(c => { c.grabando = nuevoGrabando ? 1 : 0; });
+        renderModalRecButtons();
+        mostrarToast(
+          nuevoGrabando ? '⏺ Grabación iniciada' : '⏹ Grabación detenida',
+          nuevoGrabando ? 'success' : 'info'
+        );
+        // Refrescar indicador de la tabla
         setTimeout(() => checkStatus(cod), 1200);
       } else {
-        mostrarToast('Error: ' + (data.error || 'Sin respuesta'), 'error');
-        btn.disabled = false;
-        // Restaurar texto
-        renderModalRecButtons();
+        mostrarToast('Error: ' + (data.error || data.message || 'Sin respuesta del servidor'), 'error');
+        btn.disabled  = false;
+        btn.innerHTML = htmlAnterior;
       }
     })
     .catch(() => {
       mostrarToast('Error de comunicación', 'error');
-      btn.disabled = false;
-      renderModalRecButtons();
+      btn.disabled  = false;
+      btn.innerHTML = htmlAnterior;
     });
 }
 
@@ -653,6 +722,7 @@ function mostrarToast(mensaje, tipo = 'success') {
   toast.innerHTML = `<i class="bi ${iconMap[tipo] || iconMap.info} toast-icon-${tipo}" style="font-size:1.1rem;flex-shrink:0;"></i><span>${mensaje}</span>`;
   container.appendChild(toast);
 
+
   setTimeout(() => {
     toast.style.transition = 'opacity 300ms, transform 300ms';
     toast.style.opacity    = '0';
@@ -660,4 +730,45 @@ function mostrarToast(mensaje, tipo = 'success') {
     setTimeout(() => toast.remove(), 320);
   }, 3500);
 }
+
+// ── Heartbeat de sesión ─────────────────────────────────────────────────────
+// Mantiene la sesión PHP activa mientras haya cámaras grabando.
+// Sin esto, la sesión expira (~24 min por defecto en XAMPP) y el próximo
+// llamado a stop_rec falla con "Sesión inválida".
+(function initSessionHeartbeat() {
+  const INTERVAL_MS = 4 * 60 * 1000; // ping cada 4 minutos
+  let heartbeatTimer = null;
+
+  function hayGrabacionActiva() {
+    // Revisar todos los botones de grabación en la página
+    return Array.from(document.querySelectorAll('[data-grabando="true"]')).length > 0;
+  }
+
+  function pingSession() {
+    if (!hayGrabacionActiva()) return; // no desperdiciar recursos
+
+    fetch('api/cameras.php?action=keepalive')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) {
+          // La sesión expiró incluso con el ping — avisar al usuario
+          mostrarToast('⚠ Tu sesión ha expirado. Guarda la grabación y vuelve a iniciar sesión.', 'warning');
+          clearInterval(heartbeatTimer);
+        }
+      })
+      .catch(() => {
+        // Sin conexión — no hacer nada, el usuario verá el error al detener
+      });
+  }
+
+  // Iniciar el intervalo al cargar la página
+  heartbeatTimer = setInterval(pingSession, INTERVAL_MS);
+
+  // También renovar inmediatamente si el usuario vuelve a la pestaña tras inactividad
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && hayGrabacionActiva()) {
+      pingSession();
+    }
+  });
+})();
 </script>

@@ -20,13 +20,19 @@ final class HourController
 
         $rows = $this->videos->getAvailableHoursForFilter($idLocal, $codigoCancha, $fecha);
         
-        // Agregar formato de rango de hora (ej: "15:00 - 16:00")
+        // Agregar formato de rango de hora de 1 hora (ej: "15:30 - 16:30")
         $formatted = array_map(function($row) {
-            $hora = (int) $row['hora'];
-            $horaInicio = str_pad($hora, 2, '0', STR_PAD_LEFT) . ':00';
-            $horaFin = str_pad($hora + 1, 2, '0', STR_PAD_LEFT) . ':00';
+            $horaVal = (string) ($row['hora'] ?? '');
+            if (strpos($horaVal, ':') !== false) {
+                $horaInicio = $horaVal;
+                $horaFin = date('H:i', strtotime($horaVal . ' +1 hour'));
+            } else {
+                $h = (int) $horaVal;
+                $horaInicio = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
+                $horaFin = str_pad(($h + 1) % 24, 2, '0', STR_PAD_LEFT) . ':00';
+            }
             return [
-                'hora' => $hora,
+                'hora' => $horaVal,
                 'hora_rango' => $horaInicio . ' - ' . $horaFin
             ];
         }, $rows);

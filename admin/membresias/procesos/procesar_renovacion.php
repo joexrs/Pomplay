@@ -1,5 +1,8 @@
 <?php
-// NO iniciar sesión aquí, ya está iniciada por el sistema
+// Iniciar sesión si no está activa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require __DIR__ . '/../../../conexion.php';
 
 // Verificar método POST

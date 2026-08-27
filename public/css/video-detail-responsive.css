@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+/* ⚠️ FIX: se removió el @import de Google Fonts que estaba aquí.
+   @import bloquea el parseo de TODO este archivo hasta que se
+   descarga la hoja externa (una ida-y-vuelta de red extra antes de
+   que se apliquen las reglas del overlay/poster/loading).
+   La fuente ahora se carga vía <link rel="preload"> + <link rel="stylesheet">
+   en el <head> (ver detail.php / header.php). No la vuelvas a poner
+   aquí como @import. */
 
 /* ============================================================
    VIDEO-DETAIL-RESPONSIVE.CSS
@@ -94,12 +100,18 @@ nav {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
-  /* Fallback progresivo: 100vh → dvh → JS real-vh */
+  /* FIX: orden invertido — antes var(--real-vh) iba último y siempre
+     ganaba sobre dvh (porque el JS SIEMPRE define esa variable), así
+     que dvh nunca se usaba realmente pese a estar ahí. dvh es la
+     unidad nativa pensada para este problema (se actualiza sola sin
+     depender de que un evento resize dispare a tiempo), así que ahora
+     va al final para que gane en navegadores que la soportan. */
   height: 100vh !important;
-  height: 100dvh !important;
   height: var(--real-vh, 100vh) !important;
+  height: 100dvh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
+  max-height: var(--real-vh, 100vh) !important;
   max-height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -129,13 +141,14 @@ nav {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
-/* ============================================================
-   RIELES LATERALES — iconos blancos verticales
-   ============================================================ */
+/* Botones exclusivos de mobile — ocultos en desktop */
+.mobile-only-btn {
+  display: none !important;
+}
 .player-rail {
   position: absolute;
   top: 0;
@@ -159,7 +172,7 @@ nav {
 /* En móvil (touch) los rieles suben para no solaparse con la barra de controles */
 @media (hover: none) {
   .player-rail {
-    padding-bottom: 200px;
+    padding-bottom: 48px;
   }
 }
 
@@ -414,53 +427,66 @@ nav {
   min-height: 56px;
 }
 
-/* Barra de progreso */
-.progress-bar-container {
+/* Barra de progreso — alineada con video-player.css */
+.bar-progress-container {
   margin-bottom: 6px;
   margin-top: 8px;
 }
 
-.progress-bar {
+.bar-progress {
   height: 3px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   cursor: pointer;
   position: relative;
   transition: height 0.15s ease;
+  /* Área táctil ampliada sin engordar la barra visual:
+     padding invisible + margen negativo que compensa */
 }
 
-.progress-bar:hover {
+/* En touch: área táctil invisible de 24px sin cambiar el alto visual */
+@media (hover: none) {
+  .bar-progress {
+    padding: 10px 0;
+    margin-top: -2px;
+    margin-bottom: -10px;
+    background-clip: content-box;
+    height: 3px; /* el alto visual sigue siendo 3px */
+  }
+  /* Los hijos usan top:50% para centrarse respecto al content-box */
+  .bar-buffered,
+  .bar-filled,
+  .bar-handle {
+    top: 50%;
+  }
+}
+
+.bar-progress.scrubbing,
+.bar-progress:hover {
   height: 5px;
 }
 
-.progress-filled {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 3px;
-  position: relative;
-  pointer-events: none;
-}
-
-.progress-filled::after {
-  content: '';
+/* bar-filled: NO usar height:100% porque hereda el padding táctil */
+.bar-filled {
   position: absolute;
-  right: -5px;
   top: 50%;
+  left: 0;
+  height: 3px;
   transform: translateY(-50%);
-  width: 11px;
-  height: 11px;
-  background: #fff;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.15s;
-  box-shadow: 0 0 0 2px var(--accent);
+  background: linear-gradient(90deg, var(--accent), #ff6b5b);
+  border-radius: 3px;
+  pointer-events: none;
+  box-shadow: 0 0 6px rgba(231, 76, 60, 0.45);
+  transition: height 0.15s ease, box-shadow 0.15s ease;
 }
 
-.progress-bar:hover .progress-filled::after {
-  opacity: 1;
+.bar-progress.scrubbing .bar-filled,
+.bar-progress:hover .bar-filled {
+  height: 5px;
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.65);
 }
 
-.time-display {
+.bar-time-display {
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
@@ -835,6 +861,157 @@ nav {
 }
 
 /* ============================================================
+   POSTER OVERLAY — Evita pantalla negra en TODOS los dispositivos
+   Muestra el thumbnail del video (o un placeholder elegante si no hay)
+   con un botón play centrado. Se oculta cuando el video carga.
+   ============================================================ */
+.ios-poster-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;  /* debajo de controles (25) y loading (50) pero encima del video */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* FIX: antes era background:#000 sólido. Cuando el video no tiene
+     thumbnail_url (típico en transmisiones en vivo) esto se percibía
+     como "pantalla negra rota" en vez de "cargando". Un gradiente
+     sutil comunica estado de carga sin parecer un fallo. */
+  background: radial-gradient(circle at center, #1a1a1f 0%, #000 100%);
+  transition: opacity 0.4s ease, visibility 0s linear 0s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios-poster-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+}
+
+/* ── Placeholder elegante cuando no hay thumbnail ── */
+.poster-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.poster-placeholder-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: rgba(255, 255, 255, 0.35);
+  animation: poster-pulse 2.4s ease-in-out infinite;
+}
+
+.poster-placeholder-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.03em;
+}
+
+/* Puntos de carga animados */
+.poster-placeholder-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.poster-placeholder-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  animation: poster-dot 1.2s ease-in-out infinite;
+}
+
+.poster-placeholder-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.poster-placeholder-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes poster-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.06); }
+}
+
+@keyframes poster-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+
+.ios-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.ios-poster-play-btn {
+  position: relative;
+  z-index: 2;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(255, 255, 255, 0.12);
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* El icono play necesita un nudge a la derecha para verse centrado óptico */
+.ios-poster-play-btn i {
+  margin-left: 3px;
+}
+
+.ios-poster-play-btn:hover {
+  transform: scale(1.1);
+  background: rgba(231, 76, 60, 0.7);
+}
+
+.ios-poster-play-btn:active {
+  transform: scale(0.92);
+}
+
+@media (max-width: 480px) {
+  .ios-poster-play-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 22px;
+  }
+}
+
+/* ============================================================
    PROGRESS DE MARCA DE AGUA
    ============================================================ */
 .watermark-progress {
@@ -923,7 +1100,9 @@ nav {
   inset: 0;
   width: 100vw;
   height: var(--dvh);
-  z-index: 13000;
+  /* > 99990 (z-index de .fullscreen-pseudo en iOS): si no, el video en
+     pantalla completa queda por encima y el modal se ve "tapado" */
+  z-index: 100000;
 
   /* Estado cerrado: invisible e inerte, pero respetando iOS */
   visibility: hidden;
@@ -1086,7 +1265,9 @@ nav {
   inset: 0;
   width: 100vw;
   height: var(--dvh);
-  z-index: 13000;
+  /* > 99990 (z-index de .fullscreen-pseudo en iOS): mismo motivo que
+     .mobile-share-modal arriba */
+  z-index: 100000;
 
   visibility: hidden;
   opacity: 0;
@@ -1551,10 +1732,12 @@ nav {
 
   .player-rail {
     gap: 6px;
-    padding: 8px 0 200px;
+    padding: 8px 0 48px;
   }
 
-  /* landscape: sube botones sobre controles */
+  /* landscape: los rieles quedan pegados a la barra de controles/timeline,
+     igual que en mobile portrait (antes tenían 200px de padding-bottom,
+     lo que los separaba demasiado de la línea de tiempo) */
   .custom-controls {
     padding: 32px 14px 10px;
   }
@@ -1614,15 +1797,18 @@ nav {
     height: 100% !important;
   }
 
+  /* Botones mobile-only: visibles en pantallas táctiles */
+  .mobile-only-btn {
+    display: flex !important;
+  }
+
   .video-player {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
     /* Forzar aceleración GPU en Android Chrome */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
   }
@@ -1642,8 +1828,14 @@ nav {
   width: 100vw !important;
   height: 100vh !important;
   height: var(--android-vh, 100vh) !important;
+  /* FIX: 100dvh al final — se autoactualiza de forma nativa cuando la
+     barra dinámica de Chrome Android aparece/desaparece, sin depender
+     del timing del JS que setea --android-vh. */
+  height: 100dvh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
+  max-height: var(--android-vh, 100vh) !important;
+  max-height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
@@ -1682,12 +1874,10 @@ nav {
   bottom: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover !important;
+  object-fit: contain !important;
   display: block !important;
-  /* Optimización de renderizado para Android */
+  /* Sin transform estático: no interfiere con el pan/zoom del JS */
   will-change: transform;
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
 }
 
 /* Fix para modales en Android - usar todo el espacio disponible */
@@ -1702,6 +1892,7 @@ nav {
   width: 100vw !important;
   height: 100vh !important;
   height: var(--android-vh, 100vh) !important;
+  height: 100dvh !important;
 }
 
 /* Fix específico para el contenido del modal de clips en Android:
@@ -1736,4 +1927,99 @@ nav {
 .is-android textarea,
 .is-android select {
   font-size: 16px !important;
+}
+
+/* ============================================================
+   FULLSCREEN NATIVO — al presionar el botón de pantalla completa.
+   Debe ganar sobre cualquier object-fit:cover anterior en este
+   mismo archivo, por eso va al final (mayor prioridad por orden
+   de aparición ante empate de especificidad + !important).
+   ============================================================ */
+.video-player-wrap:fullscreen,
+.video-player-wrap:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000 !important;
+}
+.video-player-wrap:fullscreen .video-player,
+.video-player-wrap:-webkit-full-screen .video-player {
+  object-fit: contain !important;
+}
+
+/* ============================================================
+   iOS SAFARI — override en este archivo (tiene mayor orden de carga)
+   Duplicamos aquí para asegurar que las reglas de este archivo
+   no anulen las de video-player.css.
+   ============================================================ */
+@supports (-webkit-touch-callout: none) {
+  .custom-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .player-rail {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .video-top-bar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* ============================================================
+   ROTACIÓN FORZADA EN iOS (pseudo-fullscreen) — override
+   Duplicado aquí porque este archivo carga después de
+   video-player.css. screen.orientation.lock() no existe en
+   Safari/WebKit, así que la rotación se simula con CSS.
+   El JS alterna .ios-force-rotate según la orientación física real.
+   ============================================================ */
+.video-player-wrap.fullscreen-pseudo.ios-force-rotate {
+  position: fixed !important;
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  /* Usamos --real-vh (ya seteado por el JS existente vía window.innerHeight)
+     en vez de 100vh: en iOS Safari, "vh" mide el viewport MÁS GRANDE posible
+     (con las barras ocultas), no el visible en ese momento, lo que producía
+     un rectángulo mal dimensionado. */
+  width: var(--real-vh, 100vh) !important;
+  height: 100vw !important;
+  max-width: var(--real-vh, 100vh) !important;
+  max-height: 100vw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+  margin: 0 !important;
+}
+
+.video-player-wrap.fullscreen-pseudo.ios-force-rotate .video-player {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* ============================================================
+   FIX: WebKit recorta (clip) un hijo position:fixed cuando su
+   ancestro más cercano también es position:fixed + overflow:hidden
+   (.detail-content). Esto es justo lo que aplastaba el video
+   rotado a una franja angosta en vez de llenar la pantalla.
+   Solución: quitar el overflow:hidden de .detail-content SOLO
+   mientras el pseudo-fullscreen de iOS está activo — no afecta a
+   Android ni al estado normal (sin pseudo-fs) del reproductor.
+   ============================================================ */
+html.pseudo-fs-active .detail-content {
+  overflow: visible !important;
+}
+
+/* FIX: .video-section trae la clase .reveal (animación de entrada fadeIn),
+   y con animation-fill-mode: both, al terminar la animación el elemento
+   se queda con "transform: translateY(0)" aplicado para siempre. En CSS,
+   CUALQUIER transform distinto de "none" (incluso uno "identidad" como
+   este) convierte a ese elemento en el containing block de sus hijos
+   position:fixed — por eso videoPlayerWrap dejaba de posicionarse
+   respecto al viewport real y se recortaba/achicaba. Se anula ese
+   transform solo mientras el pseudo-fullscreen de iOS está activo. */
+html.pseudo-fs-active .video-section {
+  transform: none !important;
 }

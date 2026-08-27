@@ -22,6 +22,8 @@ final class VideoController
         $hasAccess = false;
         $cameras = [];
 
+        
+
         if ($codigo === '') {
             $error = 'No se ha proporcionado un codigo de video.';
         } else {
@@ -42,9 +44,9 @@ final class VideoController
                 }
 
                 // Obtener todas las cámaras disponibles para esta sesión de video (misma cancha, fecha, hora)
-                $codigoCancha = $video['codigo_cancha'] ?? '';
-                $fechaPartido = $video['fecha_partido'] ?? '';
-                $horaPartido = $video['hora_partido'] ?? '';
+                $codigoCancha = trim((string) ($video['codigo_cancha'] ?? ''));
+$fechaPartido = date('Y-m-d', strtotime((string) ($video['fecha_partido'] ?? '')));
+$horaPartido  = date('H:i:s', strtotime((string) ($video['hora_partido'] ?? '')));
 
                 if (!empty($codigoCancha) && !empty($fechaPartido) && !empty($horaPartido)) {
                     $cameras = $this->videos->getCamerasForVideoSession(

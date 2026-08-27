@@ -78,10 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
       </div>
     <?php endif; ?>
 
-    <!-- Hero Card con Avatar -->
+    <!-- Hero Card con Avatar / Logo propietario -->
     <div class="profile-hero-card">
       <div class="profile-avatar-large">
-        <i class="fas fa-user"></i>
+        <?php if (!empty($propietarioId)): ?>
+          <img
+            id="owner-logo-img"
+            src="<?= $baseUrl ?>/public/logo.php?id=<?= (int)$propietarioId ?>"
+            alt="Logo propietario"
+            style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
+            onerror="this.style.display='none';document.getElementById('owner-logo-fallback').style.display='flex';"
+          >
+          <i id="owner-logo-fallback" class="fas fa-user" style="display:none;"></i>
+        <?php else: ?>
+          <i class="fas fa-user"></i>
+        <?php endif; ?>
       </div>
       <div class="profile-hero-info">
         <h2 class="profile-name"><?= htmlspecialchars($user['nombres'] . ' ' . $user['apellidos']) ?></h2>

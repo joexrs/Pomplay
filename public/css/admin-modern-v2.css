@@ -884,7 +884,7 @@ ul.treeview-menu { list-style: none; padding: 0; padding-left: 24px; display: no
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-secondary);
+  color: #ffffff !important;
 }
 
 .adm-input, .adm-select, .adm-textarea {
@@ -1234,6 +1234,22 @@ ul.treeview-menu { list-style: none; padding: 0; padding-left: 24px; display: no
   grid-template-columns: 1fr 320px;
   gap: var(--space-xl);
   margin-bottom: var(--space-2xl);
+}
+
+.estadisticas-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.estadisticas-grid .top-canchas-card {
+  min-width: 0;
+}
+
+.cancha-local {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
 }
 
 /* Card Components */
@@ -1782,7 +1798,7 @@ select option,
 }
 
 .adm-label {
-  color: var(--color-text-secondary);
+  color: #ffffff !important;
   font-weight: 600;
   font-size: 0.875rem;
   margin-bottom: var(--space-sm);
@@ -1792,6 +1808,7 @@ select option,
 @media (max-width: 1200px) {
   .dash-stats { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .dashboard-grid { grid-template-columns: 1fr; }
+  .estadisticas-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -1829,4 +1846,15 @@ select option,
   .modal-footer {
     padding: var(--space-md);
   }
+}
+
+/* --------------------- */
+/* FORM HEADING OVERRIDE */
+/* --------------------- */
+.adm-form-heading h1 {
+    color: #ffffff !important;
+}
+
+.adm-form-heading p {
+    color: #ffffff !important;
 }

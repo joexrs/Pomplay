@@ -80,7 +80,7 @@ $stmt->closeCursor();
             <td data-label="Local"><span class="badge-active"><?= $local ?></span></td>
             <td data-label="Acciones">
               <div class="table-actions">
-                <a href="<?= $baseUrl ?>/admin/canchas/edit.php?codigo_cancha=<?= urlencode($row['codigo_cancha']) ?>"
+                <a href="<?= $baseUrl ?>/admin/canchas/edit.php?id_cancha=<?= $row['id_cancha'] ?>"
                    class="btn-icon btn-icon-edit" title="Editar">
                    <i class="bi bi-pencil"></i>
                 </a>

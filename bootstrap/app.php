@@ -15,6 +15,7 @@ use App\Controllers\VideoController;
 use App\Core\Database;
 use App\Repositories\AuthRepository;
 use App\Repositories\CourtRepository;
+use App\Repositories\EstadisticasRepository;
 use App\Repositories\LocalRepository;
 use App\Repositories\VideoPinRepository;
 use App\Repositories\VideoRepository;
@@ -27,10 +28,11 @@ $videoRepository    = new VideoRepository($pdo);
 $courtRepository    = new CourtRepository($pdo);
 $localRepository    = new LocalRepository($pdo);
 $authRepository     = new AuthRepository($pdo);
-$videoPinRepository = new VideoPinRepository($pdo);
+$videoPinRepository     = new VideoPinRepository($pdo);
+$estadisticasRepository = new EstadisticasRepository($pdo);
 
 return [
-    'home'     => new HomeController($videoRepository, $localRepository, $courtRepository),
+    'home'     => new HomeController($videoRepository, $localRepository, $courtRepository, $estadisticasRepository),
     'about'    => new AboutController(),
     'memberships' => new MembershipsController(),
     'auth'     => new AuthController($authRepository),
@@ -39,6 +41,6 @@ return [
     'apiLocal' => new LocalController($localRepository),
     'apiHour'  => new HourController($videoRepository),
     'apiVideoPin' => new VideoPinController($videoPinRepository),
-    'apiClip'          => new ClipController(),
+    'apiClip'          => new ClipController($estadisticasRepository),
 ];
 

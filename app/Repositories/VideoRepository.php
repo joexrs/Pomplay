@@ -17,11 +17,11 @@ final class VideoRepository
      * @param int|null $idLocal - ID del local (sucursal)
      * @param string|null $codigoCancha - Código de la cancha
      * @param string|null $fecha - Fecha del partido (Y-m-d)
-     * @param int|null $hora - Hora de inicio del partido (0-23)
+     * @param int|string|null $hora - Hora de inicio del partido (ej. 15 o '15:30')
      * @param int $limit - Registros por página
      * @param int $offset - Offset para paginación
      */
-    public function findAdvanced(?int $idLocal, ?string $codigoCancha, ?string $fecha, ?int $hora, int $limit, int $offset): array
+    public function findAdvanced(?int $idLocal, ?string $codigoCancha, ?string $fecha, int|string|null $hora, int $limit, int $offset): array
     {
         // Generar clave de caché
         $cacheKey = Cache::generateKey('findAdvanced', [
@@ -58,9 +58,16 @@ final class VideoRepository
                 $params[':fecha'] = $fecha;
             }
 
-            if ($hora !== null) {
-                $sql .= " AND HOUR(v.hora_partido) = :hora";
-                $params[':hora'] = $hora;
+            if ($hora !== null && $hora !== '') {
+                if (is_string($hora) && strpos($hora, ':') !== false) {
+                    $horaInicio = strlen($hora) === 5 ? $hora . ':00' : $hora;
+                    $sql .= " AND v.hora_partido >= :hora_inicio AND v.hora_partido <= ADDTIME(:hora_inicio_add, '01:00:00')";
+                    $params[':hora_inicio'] = $horaInicio;
+                    $params[':hora_inicio_add'] = $horaInicio;
+                } else {
+                    $sql .= " AND HOUR(v.hora_partido) = :hora";
+                    $params[':hora'] = (int) $hora;
+                }
             }
 
             $sql .= " ORDER BY v.fecha_partido DESC LIMIT :limit OFFSET :offset";
@@ -84,7 +91,7 @@ final class VideoRepository
     /**
      * Contar videos con filtros avanzados
      */
-    public function countAdvanced(?int $idLocal, ?string $codigoCancha, ?string $fecha, ?int $hora): int
+    public function countAdvanced(?int $idLocal, ?string $codigoCancha, ?string $fecha, int|string|null $hora): int
     {
         // Usar consulta SQL directa en lugar de stored procedure
         $sql = "SELECT COUNT(*) AS total
@@ -108,9 +115,16 @@ final class VideoRepository
             $params[':fecha'] = $fecha;
         }
 
-        if ($hora !== null) {
-            $sql .= " AND HOUR(v.hora_partido) = :hora";
-            $params[':hora'] = $hora;
+        if ($hora !== null && $hora !== '') {
+            if (is_string($hora) && strpos($hora, ':') !== false) {
+                $horaInicio = strlen($hora) === 5 ? $hora . ':00' : $hora;
+                $sql .= " AND v.hora_partido >= :hora_inicio AND v.hora_partido <= ADDTIME(:hora_inicio_add, '01:00:00')";
+                $params[':hora_inicio'] = $horaInicio;
+                $params[':hora_inicio_add'] = $horaInicio;
+            } else {
+                $sql .= " AND HOUR(v.hora_partido) = :hora";
+                $params[':hora'] = (int) $hora;
+            }
         }
 
         $stmt = $this->pdo->prepare($sql);
@@ -161,7 +175,7 @@ final class VideoRepository
     public function getAvailableHoursForFilter(?int $idLocal, ?string $codigoCancha, ?string $fecha): array
     {
         // Usar consulta SQL directa en lugar de stored procedure
-        $sql = "SELECT DISTINCT HOUR(hora_partido) AS hora
+        $sql = "SELECT DISTINCT TIME_FORMAT(v.hora_partido, '%H:%i') AS hora
                 FROM video v
                 WHERE v.estado = 1
                 AND v.fecha_partido != '0000-00-00'
@@ -184,7 +198,7 @@ final class VideoRepository
             $params[':id_local'] = $idLocal;
         }
 
-        $sql .= " ORDER BY hora";
+        $sql .= " ORDER BY v.hora_partido ASC";
 
         $stmt = $this->pdo->prepare($sql);
 

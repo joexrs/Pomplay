@@ -1,5 +1,37 @@
 <?php require __DIR__ . '/../layouts/header.php'; ?>
 
+<!-- ══════════════════════════════════════════════════════════════
+     FIX: CSS / preconnect / fuentes movidos aquí arriba, ANTES de
+     cualquier markup del video. Antes estos <link> estaban a mitad
+     del <body> (después del overlay de PIN), lo que causaba FOUC:
+     el navegador podía pintar el <video>/overlay sin las reglas de
+     position/background/z-index aplicadas todavía.
+
+     IDEALMENTE estos tags deberían vivir dentro de <head> en
+     layouts/header.php, no aquí. Los dejo en este punto porque es
+     lo más temprano a lo que se puede llegar sin tocar ese archivo.
+     Si tienen acceso a header.php, muévanlos ahí para el máximo
+     beneficio (elimina por completo el riesgo de FOUC).
+     ══════════════════════════════════════════════════════════════ -->
+
+<!-- Preconectar con el CDN/host que sirve el video para adelantar
+     DNS + TLS handshake antes de que el <video> pida el primer byte.
+     ⚠️ Reemplazar por el dominio real donde vive $playableVideoUrl. -->
+<link rel="preconnect" href="https://cctv.pomplay.com.pe" crossorigin>
+<link rel="dns-prefetch" href="https://cctv.pomplay.com.pe">
+
+<!-- Fuente cargada como <link> no bloqueante en vez de @import
+     (el @import que estaba dentro de video-detail-responsive.css
+     bloqueaba el parseo de esa hoja completa). -->
+<link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap">
+
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-page.css?v=1.0" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=16.1" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=16.1" />
+
 <?php if ($video): ?>
 <?php $playableVideoUrl = $videoUrl ?? ($video['video_url'] ?? ''); ?>
 <?php $pinLongitud = 6; // Longitud esperada del PIN ?>
@@ -44,10 +76,7 @@
 </div>
 <?php endif; ?>
 
-
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-page.css?v=1.0" />
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=10.0" />
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=13.0" />
+<!-- (CSS ya cargado arriba, cerca del <head> — ver comentario al inicio del archivo) -->
 
 <!-- Fix Android: calcula la altura real del viewport sin la barra del navegador -->
 <script>
@@ -63,9 +92,15 @@
     document.documentElement.classList.add('is-ios');
   }
   
-  // Siempre calcular --real-vh (incluido iOS)
+  // FIX: antes solo se escuchaba window 'resize', que en Chrome Android
+  // no siempre se dispara a tiempo cuando la barra inferior dinámica
+  // (atrás/adelante/+/pestañas) aparece o desaparece — dejaba el
+  // contenedor con una altura vieja y esa barra gris quedaba expuesta
+  // debajo del video. `visualViewport` es la API pensada exactamente
+  // para esto: reporta el viewport realmente visible y sí se actualiza
+  // de forma confiable en esas transiciones.
   function setRealVH() {
-    var vh = window.innerHeight;
+    var vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
     document.documentElement.style.setProperty('--real-vh', vh + 'px');
     document.documentElement.style.setProperty('--android-vh', vh + 'px');
   }
@@ -74,6 +109,9 @@
   window.addEventListener('orientationchange', function () {
     setTimeout(setRealVH, 200);
   }, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setRealVH, { passive: true });
+  }
   
   // Fix adicional para Android: actualizar después de que el teclado se cierre
   if (isAndroid) {
@@ -176,6 +214,13 @@
           <span class="badge-count" id="clipsBadge">0</span>
         </button>
 
+        <!-- Volumen — botón fijo en el riel para reactivar sonido
+             sin depender del control de abajo (que solo aparece al
+             hacer hover/tap en los controles inferiores) -->
+        <button class="rail-btn" id="railVolumeBtn" title="Silenciar/Activar sonido" aria-label="Silenciar o activar sonido">
+          <i class="fas fa-volume-up"></i>
+        </button>
+
         <!-- Adelantar 10s — justo encima de la barra -->
         <button class="rail-btn" id="forwardBtn" title="Adelantar 10s" aria-label="Adelantar 10 segundos">
           <i class="fas fa-forward"></i>
@@ -184,7 +229,11 @@
       </aside>
 
       <!-- VIDEO -->
-      <video id="videoPlayer" class="video-player" preload="metadata" crossorigin="anonymous" playsinline webkit-playsinline>
+      <?php $videoPoster = $video['thumbnail_url'] ?? $video['portada'] ?? ''; ?>
+      
+      <video id="videoPlayer" class="video-player" preload="auto" autoplay muted
+             <?= $videoPoster ? 'poster="' . htmlspecialchars($videoPoster) . '"' : '' ?>
+             playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5">
         <?php if (empty($requiresPin) || !empty($hasAccess)): ?>
           <source src="<?= htmlspecialchars($playableVideoUrl) ?>" type="video/mp4" />
         <?php else: ?>
@@ -208,9 +257,11 @@
         </div>
 
         <!-- FILA 2: barra de progreso + tiempo -->
-        <div class="progress-bar-container">
-          <div class="progress-bar" id="progressBar">
-            <div class="progress-filled" id="progressFilled"></div>
+        <div class="bar-progress-container">
+          <div class="bar-progress" id="Barprogress">
+            <div class="bar-buffered" id="Barbuffered"></div>
+            <div class="bar-filled" id="Barfilled"></div>
+            <div class="bar-handle" id="Barhandle"></div>
           </div>
           <div class="time-display">
             <span id="currentTime">0:00</span>
@@ -221,6 +272,30 @@
       </div>
 
      
+
+      <!-- POSTER OVERLAY — muestra thumbnail (o placeholder) + botón play
+           mientras el video carga el primer frame. Evita pantalla negra
+           en iOS, Android y cualquier dispositivo con carga lenta. -->
+      <div class="ios-poster-overlay" id="iosPosterOverlay">
+        <?php if ($videoPoster): ?>
+        <img src="<?= htmlspecialchars($videoPoster) ?>" alt="" class="ios-poster-img" />
+        <?php else: ?>
+        <!-- Sin thumbnail: placeholder elegante -->
+        <div class="poster-placeholder" id="posterPlaceholder">
+          <div class="poster-placeholder-icon">
+            <i class="fas fa-video"></i>
+          </div>
+          <div class="poster-placeholder-text">Cargando video…</div>
+          <div class="poster-placeholder-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <?php endif; ?>
+        <button class="ios-poster-play-btn" id="iosPosterPlayBtn" aria-label="Reproducir video"
+                <?php echo !$videoPoster ? 'style="display:none"' : ''; ?>>
+          <i class="fas fa-play"></i>
+        </button>
+      </div>
 
       <!-- LOADING -->
       <div class="loading-overlay" id="loadingOverlay">
@@ -424,13 +499,22 @@
 <?php endif; ?>
 
 <script>window.POMPLAY_BASE = '<?= $baseUrl ?>';</script>
+<?php if (!empty($video)): ?>
+<script>
+window.POMPLAY_VIDEO = {
+  codigo: <?= json_encode($codigoVideo, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+  id_local: <?= !empty($video['id_local']) ? (int) $video['id_local'] : 'null' ?>,
+  codigo_cancha: <?= json_encode($video['codigo_cancha'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+};
+</script>
+<?php endif; ?>
 <script>
 // Pasar cámaras disponibles al JavaScript
 window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
 </script>
 <!-- Detectar Android para aplicar estilos sólo en ese OS -->
 <script src="<?= $baseUrl ?>/public/js/platform-detect.js?v=2.0"></script>
-<script src="<?= $baseUrl ?>/public/js/video-player.js?v=8.0"></script>
+<script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.1"></script>
 <?php if (!empty($requiresPin) && empty($hasAccess)): ?>
 <script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.0"></script>
 <?php endif; ?>

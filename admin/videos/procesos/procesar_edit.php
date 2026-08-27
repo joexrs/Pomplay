@@ -45,12 +45,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = 'Debe seleccionar una cancha';
     }
 
-    // Validar video URL
-    if (empty($video_url)) {
-        $errors[] = 'La URL del video es obligatoria';
-    } elseif (strlen($video_url) > 255) {
-        $errors[] = 'La URL del video no puede exceder 255 caracteres';
-    }
+    // video_url es de solo lectura (generada automáticamente al registrar)
+    // Se preserva el valor existente en la BD
 
     // Validar duración
     if (empty($duracion)) {
@@ -97,21 +93,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 hora_partido = :hora_partido,
                 descripcion = :descripcion,
                 codigo_cancha = :codigo_cancha,
-                video_url = :video_url,
                 duracion = :duracion,
                 observacion = :observacion
             WHERE codigo_video = :codigo_video
         ");
         
         $result = $stmt->execute([
-            ':codigo_video' => $codigo_video,
+            ':codigo_video'  => $codigo_video,
             ':fecha_partido' => $fecha_partido,
-            ':hora_partido' => $hora_partido,
-            ':descripcion' => $descripcion,
+            ':hora_partido'  => $hora_partido,
+            ':descripcion'   => $descripcion,
             ':codigo_cancha' => $codigo_cancha,
-            ':video_url' => $video_url,
-            ':duracion' => $duracion,
-            ':observacion' => $observacion,
+            ':duracion'      => $duracion,
+            ':observacion'   => $observacion,
         ]);
         
         if (!$result) {

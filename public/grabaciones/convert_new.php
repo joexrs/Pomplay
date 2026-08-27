@@ -1,18 +1,5 @@
 <?php
-/**
- * convert.php — VPS cctv.pomplay.com.pe
- *
- * MODO 1 (legacy): Recibe un archivo WebM subido y lo convierte a MP4.
- *   POST multipart: clip (file), key (string)
- *   Responde: MP4 binario (stream)
- *
- * MODO 2 (nuevo — recorte profesional): Recibe URL del video + tiempos.
- *   POST form/JSON: mode='clip', key, video_url, start, end, [zoom, pan_x, pan_y]
- *   Responde: JSON {ok: true, clip_url: "https://...", filename: "..."}
- *
- * Optimizado para videos CCTV largos (30min, 1h, 2h o más).
- * Compatible: WhatsApp, Android, iPhone, Windows, Mac, Chrome, Safari, Firefox.
- */
+
 
 // ── Configuración ──────────────────────────────────────────────────────────
 $API_KEY    = '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';

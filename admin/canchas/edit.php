@@ -192,10 +192,10 @@
 
 <main class="app-content">
 <?php
-if (!isset($_GET['codigo_cancha'])) { header("Location: " . $baseUrl . "/admin/canchas/index.php"); exit(); }
-$codigo_cancha = $_GET['codigo_cancha'];
-$stmt = $pdo->prepare("CALL GetAdminCanchaByCodigo(:codigo_cancha)");
-$stmt->execute([':codigo_cancha' => $codigo_cancha]);
+if (!isset($_GET['id_cancha']) || !is_numeric($_GET['id_cancha'])) { header("Location: " . $baseUrl . "/admin/canchas/index.php"); exit(); }
+$id_cancha = (int) $_GET['id_cancha'];
+$stmt = $pdo->prepare("CALL GetAdminCanchaById(:id_cancha)");
+$stmt->execute([':id_cancha' => $id_cancha]);
 $cancha = $stmt->fetch();
 $stmt->closeCursor();
 if (!$cancha) { header("Location: " . $baseUrl . "/admin/canchas/index.php"); exit(); }
@@ -214,7 +214,7 @@ $stmt_loc->closeCursor();
 
   <div class="adm-form-card">
     <form action="procesos/procesar_editar.php" method="POST" enctype="multipart/form-data" autocomplete="off" id="formEditCancha">
-      <input type="hidden" name="codigo_cancha" value="<?= htmlspecialchars($cancha['codigo_cancha']) ?>" />
+      <input type="hidden" name="id_cancha" value="<?= htmlspecialchars($cancha['id_cancha']) ?>" />
 
       <div class="adm-field">
         <label class="adm-label">Código de la cancha</label>

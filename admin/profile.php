@@ -6,267 +6,247 @@
 <link rel="stylesheet" href="/public/css/modals.css">
 
 <style>
-/* Estilos mejorados para el perfil del admin */
+/* Rediseño: una sola card unificada con perfil + locales */
 .profile-container {
-  max-width: 1200px;
+  max-width: 760px;
   margin: 0 auto;
+  padding: 0 1rem 3rem;
 }
 
-/* Hero Card con Avatar */
-.profile-hero-card {
-  background: linear-gradient(135deg, rgba(61, 240, 194, 0.15) 0%, rgba(61, 240, 194, 0.05) 100%);
-  border: 1px solid rgba(61, 240, 194, 0.2);
-  border-radius: 20px;
-  padding: 40px;
-  margin-bottom: 32px;
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+.profile-card {
   position: relative;
+  background: linear-gradient(180deg, rgba(236, 66, 55, 0.05) 0%, rgba(255, 255, 255, 0.02) 140px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 32px;
   overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
 }
 
-.profile-hero-card::before {
+.profile-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var( #91e81e), #5ff5d1);
+  top: -80px;
+  left: -60px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(236, 66, 55, 0.16) 0%, rgba(236, 66, 55, 0) 70%);
+  pointer-events: none;
 }
 
-.profile-hero-card:hover {
-  border-color: rgba(61, 240, 194, 0.4);
-  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.4);
-  transform: translateY(-4px);
+/* Encabezado */
+.profile-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 26px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .profile-avatar-large {
-  width: 140px;
-  height: 140px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var( #91e81e) 0%, #5ff5d1 100%);
+  background: rgba(236, 66, 55, 0.1);
+  display: grid;
+  place-items: center;
+  color: #ec4237;
+  font-size: 1.9rem;
+  flex-shrink: 0;
+  border: 1px solid rgba(236, 66, 55, 0.3);
+  box-shadow: 0 0 0 6px rgba(236, 66, 55, 0.06);
+}
+
+.profile-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 4rem;
-  color: #0a0a0f;
-  font-weight: 800;
-  box-shadow: 0 10px 30px rgba(61, 240, 194, 0.5);
-  border: 5px solid rgba(61, 240, 194, 0.15);
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.profile-avatar-large::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.3) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.profile-hero-card:hover .profile-avatar-large::before {
-  opacity: 1;
-}
-
-.profile-hero-info {
-  flex: 1;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .profile-name {
-  font-size: 2.2rem;
-  font-weight: 800;
+  font-size: 1.45rem;
+  font-weight: 700;
   color: #ffffff;
-  margin: 0 0 12px 0;
-  letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .profile-role-badge {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  background: rgba(61, 240, 194, 0.25);
-  color: var( #91e81e);
-  border: 2px solid rgba(61, 240, 194, 0.5);
-  border-radius: 25px;
-  font-size: 1rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(236, 66, 55, 0.12);
+  border: 1px solid rgba(236, 66, 55, 0.35);
+  color: #ec4237;
+  font-size: 0.7rem;
   font-weight: 700;
-  margin-bottom: 16px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.profile-role-badge i {
-  font-size: 1.1rem;
-}
-
-.profile-stats {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.profile-stat-item {
+.profile-username-sub {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.88rem;
+  margin: 8px 0 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.95rem;
-  font-weight: 500;
+  gap: 6px;
 }
 
-.profile-stat-item i {
-  color: var( #91e81e);
-  font-size: 1.1rem;
+.profile-username-sub i {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.78rem;
 }
 
-.profile-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.profile-header-action {
+  flex-shrink: 0;
 }
 
 .btn-profile-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 14px 28px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50px;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.85rem;
   font-weight: 600;
-  font-size: 0.95rem;
+  color: #ec4237;
+  background: rgba(236, 66, 55, 0.08);
+  border: 1px solid rgba(236, 66, 55, 0.35);
+  border-radius: 999px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .btn-profile-action:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  transform: translateY(-2px);
+  background: rgba(236, 66, 55, 0.16);
+  border-color: rgba(236, 66, 55, 0.55);
 }
 
-.btn-profile-action-primary {
-  background: linear-gradient(135deg, var( #3df0c2) 0%, #5ff5d1 10%);
-  border-color: transparent;
-  color: #0a0a0f;
-  box-shadow: 0 6px 20px rgba(61, 240, 194, 0.4);
-}
-
-.btn-profile-action-primary:hover {
-  background: linear-gradient(135deg, #2dd9b0 0%, #3df0c2 100%);
-  box-shadow: 0 8px 24px rgba(61, 240, 194, 0.5);
-  color: #0a0a0f;
-}
-
-/* Cards */
-.form-card-enhanced {
-  background: var(--color-bg-card, #11132d);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+/* Secciones dentro de la card */
+.settings-section {
   position: relative;
-  overflow: hidden;
+  padding: 22px 0 0;
 }
 
-.form-card-enhanced::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var( #91e81e), #5ff5d1);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s ease;
+.settings-section + .settings-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.form-card-enhanced:hover::before {
-  transform: scaleX(1);
-}
-
-.form-card-enhanced:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
-  transform: translateY(-2px);
-}
-
-.form-card-header-enhanced {
-  margin-bottom: 28px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.form-card-title-enhanced {
+.settings-section-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #ffffff;
-  font-size: 1.4rem;
-  font-weight: 800;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.01em;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px;
 }
 
-.form-card-title-enhanced i {
-  color: var(--dk-accent, #3df0c2);
-  font-size: 1.3rem;
+.settings-section-title i {
+  color: rgba(236, 66, 55, 0.8);
+  font-size: 0.72rem;
 }
 
-.form-card-subtitle-enhanced {
-  color: rgba(255, 255, 255, 0.6);
+.settings-section-subtitle {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.84rem;
+  margin: 0 0 16px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.settings-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-label {
+  color: rgba(255, 255, 255, 0.85);
   font-size: 0.9rem;
-  margin: 0;
-  font-weight: 400;
+  font-weight: 500;
 }
 
+.settings-value {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.82rem;
+}
+
+.settings-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #ec4237;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 0;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.settings-link-btn:hover {
+  opacity: 0.75;
+}
+
+/* Locales: grid de badges dentro de la misma card */
 .locales-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .local-badge {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(61, 240, 194, 0.15), rgba(61, 240, 194, 0.05));
-  border: 1px solid rgba(61, 240, 194, 0.3);
-  border-radius: 14px;
-  color: #ffffff;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 600;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
+  font-size: 0.88rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .local-badge:hover {
-  background: linear-gradient(135deg, rgba(61, 240, 194, 0.25), rgba(61, 240, 194, 0.1));
-  border-color: rgba(61, 240, 194, 0.5);
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(61, 240, 194, 0.3);
+  border-color: rgba(236, 66, 55, 0.3);
+  background: rgba(236, 66, 55, 0.05);
 }
 
 .local-badge i {
-  color: var( #91e81e);
-  font-size: 1.2rem;
+  color: #ec4237;
+  min-width: 18px;
+  font-size: 0.9rem;
 }
 
 .empty-state {
@@ -274,56 +254,47 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 40px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .empty-state i {
-  font-size: 4rem;
-  margin-bottom: 20px;
-  opacity: 0.4;
+  font-size: 2rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
 }
 
 .empty-state p {
-  font-size: 1rem;
+  font-size: 0.9rem;
   margin: 0;
 }
 
-/* Responsive */
-@media (max-width: 992px) {
-  .profile-hero-card {
-    flex-direction: column;
-    text-align: center;
-    padding: 32px;
+@media (max-width: 600px) {
+  .profile-card {
+    padding: 24px;
   }
 
-  .profile-avatar-large {
-    width: 120px;
-    height: 120px;
-    font-size: 3rem;
+  .profile-header {
+    flex-wrap: wrap;
   }
 
-  .profile-name {
-    font-size: 1.8rem;
-  }
-
-  .profile-stats {
-    justify-content: center;
-  }
-
-  .profile-actions {
+  .profile-header-action {
     width: 100%;
   }
 
   .btn-profile-action {
     width: 100%;
   }
-}
 
-@media (max-width: 768px) {
-  .form-card-enhanced {
-    padding: 24px;
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .settings-link-btn {
+    align-self: flex-start;
   }
 
   .locales-grid {
@@ -331,50 +302,26 @@
   }
 }
 
-@media (max-width: 480px) {
-  .profile-hero-card {
-    padding: 24px;
-  }
-
-  .profile-avatar-large {
-    width: 100px;
-    height: 100px;
-    font-size: 2.5rem;
-  }
-
-  .profile-name {
-    font-size: 1.5rem;
-  }
-
-  .form-card-enhanced {
-    padding: 20px;
-  }
-
-  .form-card-title-enhanced {
-    font-size: 1.2rem;
-  }
-}
-
-/* Estilos del Modal de Contraseña */
+/* Modal de cambio de contraseña */
 #passwordModal .modal-container {
-  background: linear-gradient(135deg, #11132d, #11132d);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
+  background: rgba(15, 17, 34, 1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   padding: 28px;
   max-width: 420px;
-  width: 90%;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7);
-  animation: modalSlideIn 0.3s ease;
+  width: 92%;
+  box-shadow: none;
+  animation: modalSlideIn 0.2s ease;
 }
 
 @keyframes modalSlideIn {
   from {
     opacity: 0;
-    transform: translateY(-30px) scale(0.95);
+    transform: translateY(-12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -382,188 +329,136 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(61, 240, 194, 0.3);
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 #passwordModal .modal-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 600;
   color: #ffffff;
-  letter-spacing: -0.01em;
 }
 
 #passwordModal .modal-title i {
-  color: var( #91e81e);
-  font-size: 1.2rem;
+  color: rgba(236, 66, 55, 0.85);
+  font-size: 0.9rem;
 }
 
 #passwordModal .modal-close {
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
   cursor: pointer;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
   padding: 0;
 }
 
 #passwordModal .modal-close:hover {
-  background: rgba(61, 240, 194, 0.2);
-  border-color: var(#91e81e);
+  background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  transform: rotate(90deg);
 }
 
 #passwordModal .modal-body {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 #passwordModal .modal-field {
-  margin-bottom: 18px;
-}
-
-#passwordModal .modal-field:last-child {
-  margin-bottom: 0;
+  margin-bottom: 16px;
 }
 
 #passwordModal .modal-label {
   display: block;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 700;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+  font-size: 0.78rem;
+  margin-bottom: 6px;
 }
 
 #passwordModal .modal-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 11px 13px;
   color: #ffffff;
-  font-size: 0.95rem;
-  font-family: 'Inter', sans-serif;
-  transition: all 0.3s ease;
+  font-size: 0.88rem;
+  transition: border-color 0.15s ease;
   outline: none;
 }
 
 #passwordModal .modal-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.28);
 }
 
 #passwordModal .modal-input:focus {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(#91e81e);
-  box-shadow: 0 0 0 4px rgba(61, 240, 194, 0.2);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(236, 66, 55, 0.55);
+  box-shadow: none;
 }
 
 #passwordModal .modal-footer {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
 }
 
-#passwordModal .modal-btn-primary {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, var(#91e81e) 0%, #5ff5d1 100%);
-  color: #0a0a0f;
-  border: none;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 6px 20px rgba(61, 240, 194, 0.4);
-}
-
-#passwordModal .modal-btn-primary:hover {
-  background: linear-gradient(135deg, #2dd9b0 0%, #3df0c2 100%);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(61, 240, 194, 0.5);
-}
-
-#passwordModal .modal-btn-primary:active {
-  transform: translateY(-1px);
-}
-
+#passwordModal .modal-btn-primary,
 #passwordModal .modal-btn-secondary {
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.3s ease;
+}
+
+#passwordModal .modal-btn-primary {
+  background: transparent;
+  color: #ec4237;
+  border-color: #ec4237;
+  box-shadow: none;
+}
+
+#passwordModal .modal-btn-primary:hover {
+  background: rgba(236, 66, 55, 0.08);
+}
+
+#passwordModal .modal-btn-secondary {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #passwordModal .modal-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-2px);
-}
-
-/* Responsive Modal */
-@media (max-width: 768px) {
-  #passwordModal .modal-container {
-    padding: 24px;
-    width: 95%;
-  }
-
-  #passwordModal .modal-title {
-    font-size: 1.2rem;
-  }
-
-  #passwordModal .modal-footer {
-    flex-direction: column;
-  }
-
-  #passwordModal .modal-btn-primary,
-  #passwordModal .modal-btn-secondary {
-    width: 100%;
-  }
+  background: rgba(255, 255, 255, 0.04);
 }
 
 @media (max-width: 480px) {
   #passwordModal .modal-container {
-    padding: 20px;
+    padding: 22px;
     max-width: 95%;
   }
 
-  #passwordModal .modal-title {
-    font-size: 1.1rem;
-  }
-
-  #passwordModal .modal-input {
-    font-size: 0.9rem;
-    padding: 10px 14px;
+  #passwordModal .modal-footer {
+    flex-direction: column;
   }
 }
 </style>
@@ -657,59 +552,63 @@ $displayName = trim(($user['nombres'] ?? '') . ' ' . ($user['apellidos'] ?? ''))
       </div>
     <?php endif; ?>
 
-    <!-- Hero Card con Avatar -->
-    <div class="profile-hero-card">
-      <div class="profile-avatar-large">
-        <i class="fas fa-user-shield"></i>
-      </div>
-      <div class="profile-hero-info">
-        <h2 class="profile-name"><?= htmlspecialchars($displayName) ?></h2>
-        <div class="profile-role-badge">
-          <i class="fas fa-shield-halved"></i>
-          <span><?= htmlspecialchars($user['rol'] ?? 'Administrador') ?></span>
+    <!-- Card única: perfil + cuenta + locales -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-avatar-large" style="padding: 10px;">
+          <img src="<?= $baseUrl ?>/public/images/pomplay%20logo.png" alt="Admin Avatar" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
-        <div class="profile-stats">
-          <div class="profile-stat-item">
+        <div class="profile-header-info">
+          <div class="profile-name-row">
+            <h2 class="profile-name"><?= htmlspecialchars($displayName) ?></h2>
+            <span class="profile-role-badge"><?= htmlspecialchars($user['rol'] ?? 'Administrador') ?></span>
+          </div>
+          <p class="profile-username-sub">
             <i class="fas fa-user"></i>
-            <span><?= htmlspecialchars($user['usuario']) ?></span>
-          </div>
-          <?php if ($propietarioId && !empty($locales)): ?>
-          <div class="profile-stat-item">
-            <i class="fas fa-store"></i>
-            <span><?= count($locales) ?> <?= count($locales) === 1 ? 'Local' : 'Locales' ?></span>
-          </div>
-          <?php endif; ?>
+            <?= htmlspecialchars($user['usuario']) ?>
+          </p>
+        </div>
+        <div class="profile-header-action">
+          <button type="button" class="btn-profile-action" onclick="abrirModal()">
+            <i class="fas fa-lock"></i>
+            Cambiar Contraseña
+          </button>
         </div>
       </div>
-      <div class="profile-actions">
-        <button type="button" class="btn-profile-action btn-profile-action-primary" onclick="abrirModal()">
-          <i class="fas fa-lock"></i>
-          Cambiar Contraseña
-        </button>
-      </div>
-    </div>
 
-    <!-- Card: Mis Locales (si tiene) -->
-    <?php if ($propietarioId && !empty($locales)): ?>
-    <div class="form-card-enhanced">
-      <div class="form-card-header-enhanced">
-        <h2 class="form-card-title-enhanced">
+      <!-- Cuenta -->
+      <div class="settings-section">
+        <p class="settings-section-title">
+          <i class="fas fa-id-badge"></i>
+          Cuenta
+        </p>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <span class="settings-label">Usuario</span>
+            <span class="settings-value"><?= htmlspecialchars($user['usuario']) ?></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mis Locales (si tiene) -->
+      <?php if ($propietarioId && !empty($locales)): ?>
+      <div class="settings-section">
+        <p class="settings-section-title">
           <i class="fas fa-store"></i>
           Mis Locales Deportivos
-        </h2>
-        <p class="form-card-subtitle-enhanced">Locales asignados a tu cuenta</p>
+        </p>
+        <p class="settings-section-subtitle">Locales asignados a tu cuenta</p>
+        <div class="locales-grid">
+          <?php foreach ($locales as $loc): ?>
+            <div class="local-badge">
+              <i class="fas fa-store"></i>
+              <span><?= htmlspecialchars($loc['nombre_local']) ?></span>
+            </div>
+          <?php endforeach; ?>
+        </div>
       </div>
-
-      <div class="locales-grid">
-        <?php foreach ($locales as $loc): ?>
-          <div class="local-badge">
-            <i class="fas fa-store"></i>
-            <span><?= htmlspecialchars($loc['nombre_local']) ?></span>
-          </div>
-        <?php endforeach; ?>
-      </div>
+      <?php endif; ?>
     </div>
-    <?php endif; ?>
   </div>
 </main>
 

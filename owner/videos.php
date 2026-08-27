@@ -281,13 +281,11 @@ $meses = [
               <div class="table-actions" style="justify-content:flex-end;">
                 <button class="table-btn-icon btn-vid-play"
                   title="Reproducir"
-                  onclick="verVideo(
-                    <?= json_encode($videoUrl) ?>,
-                    <?= json_encode($descr) ?>,
-                    <?= json_encode($codCancha) ?>,
-                    <?= $dur ?>,
-                    <?= json_encode($fd . ($hora ? ' · ' . $hora : '')) ?>
-                  )">
+                  data-vid-url="<?= htmlspecialchars($videoUrl, ENT_QUOTES) ?>"
+                  data-vid-titulo="<?= htmlspecialchars($descr, ENT_QUOTES) ?>"
+                  data-vid-cancha="<?= htmlspecialchars($codCancha, ENT_QUOTES) ?>"
+                  data-vid-dur="<?= (int)$dur ?>"
+                  data-vid-fecha="<?= htmlspecialchars($fd . ($hora ? ' · ' . $hora : ''), ENT_QUOTES) ?>">
                   <i class="bi bi-play-fill"></i>
                 </button>
                 <?php if ($esDescargable && $videoUrl): ?>
@@ -458,32 +456,80 @@ $meses = [
 
 <script>window.POMPLAY_BASE = '<?= $baseUrl ?>';</script>
 <script>
-function verVideo(url, titulo, cancha, duracion, fecha) {
+/* ── Video Modal ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+
+  // Delegated click: un solo listener para todos los botones de reproducción
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-vid-play');
+    if (!btn) return;
+    e.preventDefault();
+    const url     = btn.dataset.vidUrl    || '';
+    const titulo  = btn.dataset.vidTitulo || 'Grabación';
+    const cancha  = btn.dataset.vidCancha || '';
+    const duracion = parseInt(btn.dataset.vidDur, 10) || 0;
+    const fecha   = btn.dataset.vidFecha  || '';
+    abrirVideoModal(url, titulo, cancha, duracion, fecha);
+  });
+
+  // Cerrar al hacer click en el overlay (fuera del contenedor)
+  const overlay = document.getElementById('vidModal');
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) cerrarVideo();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') cerrarVideo();
+  });
+});
+
+function abrirVideoModal(url, titulo, cancha, duracion, fecha) {
   const modal  = document.getElementById('vidModal');
   const player = document.getElementById('vid-player');
+  const source = document.getElementById('vid-player-src');
   const meta   = document.getElementById('vid-modal-meta');
 
-  document.getElementById('vid-modal-title-text').textContent = titulo || 'Grabación';
-  const source = document.getElementById('vid-player-src');
+  if (!modal || !player || !source) {
+    console.error('vidModal: elementos no encontrados en el DOM');
+    return;
+  }
+
+  document.getElementById('vid-modal-title-text').textContent = titulo;
+
+  // Cargar el video
   source.src = url;
   player.load();
 
+  // Metadatos
   meta.innerHTML = [
-    fecha   ? `<div class="vid-modal-meta-item"><i class="bi bi-calendar3"></i> ${fecha}</div>` : '',
-    cancha  ? `<div class="vid-modal-meta-item"><i class="bi bi-geo-alt"></i> ${cancha}</div>` : '',
+    fecha  ? `<div class="vid-modal-meta-item"><i class="bi bi-calendar3"></i> ${fecha}</div>`   : '',
+    cancha ? `<div class="vid-modal-meta-item"><i class="bi bi-geo-alt"></i> ${cancha}</div>`    : '',
     `<div class="vid-modal-meta-item"><i class="bi bi-stopwatch"></i> ${formatDurJS(duracion)}</div>`,
   ].join('');
 
+  // Mostrar modal
+  modal.style.display = 'flex';
+  // Forzar reflow para que la transición CSS arranque
+  modal.offsetHeight;
   modal.classList.add('active');
+
+  // Intentar reproducir (puede fallar por política del navegador, está controlado)
   player.play().catch(() => {});
 }
 
 function cerrarVideo() {
+  const modal  = document.getElementById('vidModal');
   const player = document.getElementById('vid-player');
+  const source = document.getElementById('vid-player-src');
+  if (!modal) return;
   player.pause();
-  document.getElementById('vid-player-src').src = '';
+  source.src = '';
   player.load();
-  document.getElementById('vidModal').classList.remove('active');
+  modal.classList.remove('active');
+  // Ocultar tras la animación de salida
+  setTimeout(() => { modal.style.display = 'none'; }, 310);
 }
 
 function formatDurJS(seg) {
@@ -495,8 +541,6 @@ function formatDurJS(seg) {
   if (m > 0) return `${m}m ${String(s).padStart(2,'0')}s`;
   return `${s}s`;
 }
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarVideo(); });
 </script>
 <?php if ($esLocalPrivado): ?>
 <script src="<?= $baseUrl ?>/public/js/admin-video-pin.js?v=1.0"></script>

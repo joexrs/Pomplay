@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../../../conexion.php';
+require_once __DIR__ . '/../../../app/Services/VpsStorageService.php';
 
 // Calcular la ruta base del proyecto de forma dinámica
 $docRoot = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/');
@@ -17,6 +18,38 @@ $baseUrl = rtrim($baseUrl, '/');
 // Si $baseUrl es solo '/', dejarlo vacío para producción
 if ($baseUrl === '/') {
     $baseUrl = '';
+}
+
+/**
+ * Procesa y guarda el logo de un propietario como BLOB en la base de datos.
+ * Devuelve un mensaje de error si el archivo no es válido, o null si todo OK.
+ */
+function procesarLogoPropietario(PDO $pdo, int $idPropietario, array $file): ?string
+{
+    $allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+    $maxSize = 2 * 1024 * 1024; // 2MB
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (!in_array($mime, $allowedMimes, true)) {
+        return 'El logo debe ser una imagen PNG, JPG o WEBP';
+    }
+
+    if ($file['size'] > $maxSize) {
+        return 'El logo no debe superar los 2MB';
+    }
+
+    $logoData = file_get_contents($file['tmp_name']);
+
+    $stmt = $pdo->prepare("UPDATE propietarios SET logo = :logo, logo_mime = :mime WHERE id_propietario = :id");
+    $stmt->bindParam(':logo', $logoData, PDO::PARAM_LOB);
+    $stmt->bindParam(':mime', $mime);
+    $stmt->bindParam(':id', $idPropietario, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return null;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -61,6 +94,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = 'La contraseña debe tener al menos 6 caracteres';
             }
         }
+
+        // Validar logo si se subió uno (nuevo propietario)
+        if (!empty($_FILES['nuevo_propietario_logo']['tmp_name']) && $_FILES['nuevo_propietario_logo']['error'] === UPLOAD_ERR_OK) {
+            $logoFile = $_FILES['nuevo_propietario_logo'];
+            $allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $logoMime = finfo_file($finfo, $logoFile['tmp_name']);
+            finfo_close($finfo);
+
+            if (!in_array($logoMime, $allowedMimes, true)) {
+                $errors[] = 'El logo debe ser una imagen PNG, JPG o WEBP';
+            } elseif ($logoFile['size'] > 2 * 1024 * 1024) {
+                $errors[] = 'El logo no debe superar los 2MB';
+            }
+        }
         
         // Validar fechas de membresía
         $fecha_inicio = $_POST['fecha_inicio'] ?? '';
@@ -95,6 +143,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error'] = 'Error al crear el local';
             header('Location: ' . $baseUrl . '/admin/locales/add.php');
             exit;
+        }
+
+        // ── Crear directorio en VPS para el nuevo local ────────────────────────
+        try {
+            $vpsStorage = new \App\Services\VpsStorageService();
+            $vpsOk = $vpsStorage->createLocalDirectory($localId);
+            if (!$vpsOk) {
+                error_log("[VPS] No se pudo crear el directorio para el local ID={$localId}");
+                $_SESSION['vps_warning'] = "Local creado (ID: {$localId}), pero no se pudo crear la carpeta en el VPS. Verifica la conexión con el servidor de almacenamiento.";
+            }
+        } catch (\Exception $vpsEx) {
+            // No abortar el registro: solo loguear el error
+            error_log("[VPS] Excepción al crear directorio del local: " . $vpsEx->getMessage());
+            $_SESSION['vps_warning'] = "Local creado, pero error al conectar con el VPS: " . $vpsEx->getMessage();
         }
 
         // Actualizar es_privado si fue marcado
@@ -137,6 +199,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtUser->closeCursor();
                 }
             }
+
+            // Si se subió un logo nuevo aunque el propietario ya exista, actualizarlo
+            if (!empty($_FILES['nuevo_propietario_logo']['tmp_name']) && $_FILES['nuevo_propietario_logo']['error'] === UPLOAD_ERR_OK) {
+                $logoError = procesarLogoPropietario($pdo, (int) $propietarioId, $_FILES['nuevo_propietario_logo']);
+                if ($logoError) {
+                    error_log("[Logo] Error al actualizar logo del propietario {$propietarioId}: {$logoError}");
+                }
+            }
         }
         // Si se proporciona información de nuevo propietario
         elseif (!empty($nuevo_nombre) && !empty($nuevo_apellidos) && !empty($nuevo_email) && !empty($nuevo_password)) {
@@ -152,6 +222,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $propietarioId = (int) ($stmtProp->fetch(PDO::FETCH_ASSOC)['id_propietario'] ?? 0);
             $stmtProp->closeCursor();
+
+            // Procesar logo del nuevo propietario, si se subió
+            if ($propietarioId && !empty($_FILES['nuevo_propietario_logo']['tmp_name']) && $_FILES['nuevo_propietario_logo']['error'] === UPLOAD_ERR_OK) {
+                $logoError = procesarLogoPropietario($pdo, $propietarioId, $_FILES['nuevo_propietario_logo']);
+                if ($logoError) {
+                    error_log("[Logo] Error al guardar logo del propietario {$propietarioId}: {$logoError}");
+                }
+            }
             
             if ($propietarioId) {
                 // Actualizar local con el nuevo propietario

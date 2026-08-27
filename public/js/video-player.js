@@ -7,11 +7,162 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (!videoPlayer || !videoControls) return;
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // ── Detección de iOS ──────────────────────────────────────
+  // Desde iOS 13, iPadOS reporta su userAgent como si fuera un Mac
+  // de escritorio (para recibir la versión "desktop" de las webs).
+  // Por eso el chequeo clásico /iPad|iPhone|iPod/ ya NO detecta
+  // iPads modernos. Se agrega un segundo chequeo: MacIntel + touch
+  // (un Mac real de escritorio nunca tiene maxTouchPoints > 1).
+  const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   if (isIOS) {
     videoPlayer.setAttribute('playsinline', 'true');
     videoPlayer.setAttribute('webkit-playsinline', 'true');
     videoPlayerWrap.style.touchAction = 'manipulation';
+  }
+
+  // FIX: silenciar el video como propiedad JS desde el inicio (no sólo
+  // justo antes del play()). Safari valida "¿este video es elegible
+  // para autoplay?" en base al estado muted+playsinline lo antes
+  // posible; hacerlo aquí, junto con el atributo `muted` ya presente
+  // en el HTML, maximiza que el primer play() automático sea aceptado
+  // en vez de bloqueado.
+  videoPlayer.muted = true;
+
+  // FIX iOS: Safari nunca permite audio con autoplay sin gesto del
+  // usuario — es una restricción del sistema, no algo que se pueda
+  // evitar con código. `iosAudioUnlocked` trackea si ya ocurrió ese
+  // primer gesto. unlockIOSAudio() se llama desde cualquier primera
+  // interacción (toque en el video, en la página, en un botón del UI)
+  // y SOLO activa el audio — no toca play/pause, eso lo maneja cada
+  // listener por su cuenta (ver el click del video más abajo, que
+  // usa esta bandera para saltarse el toggle de pausa en el primer tap).
+  let iosAudioUnlocked = false;
+  const unlockIOSAudio = () => {
+    if (iosAudioUnlocked) return;
+    iosAudioUnlocked = true;
+    videoPlayer.muted = false;
+    if (videoPlayer.paused) videoPlayer.play().catch(() => {});
+  };
+  if (isIOS) {
+    // Nota: solo escuchamos 'click', no 'touchstart'. 'touchstart' se
+    // dispara ANTES que 'click', así que si lo usáramos aquí, el audio
+    // quedaría desbloqueado una fracción de segundo antes de que el
+    // click handler del video decida si pausar o no — y volveríamos al
+    // mismo bug (pausa antes de que se alcance a escuchar algo). Con
+    // solo 'click', el propio handler del video (más abajo) intercepta
+    // su click y decide correctamente si este es el primer toque.
+    document.addEventListener('click', unlockIOSAudio, { once: true });
+  }
+
+  // ── Poster Overlay (TODOS los dispositivos) ────────────────
+  // Muestra thumbnail (o placeholder animado) mientras el video no
+  // tiene un primer frame disponible. Evita la pantalla negra en
+  // iOS, Android y cualquier conexión lenta.
+  //
+  // Reglas:
+  //  · Siempre visible al cargar la página.
+  //  · Se oculta cuando: canplay / loadeddata / playing / error.
+  //  · En iOS Safari (sin autoplay): espera el tap del usuario.
+  //  · En Android/Desktop: intenta autoplay silencioso; si falla,
+  //    muestra el botón play sobre el placeholder.
+  //  · Al cambiar cámara: vuelve a mostrarse.
+  const iosPosterOverlay = document.getElementById('iosPosterOverlay');
+  const iosPosterPlayBtn = document.getElementById('iosPosterPlayBtn');
+  const posterPlaceholder = document.getElementById('posterPlaceholder');
+
+  function hideIOSPoster() {
+    if (!iosPosterOverlay) return;
+    iosPosterOverlay.classList.add('hidden');
+  }
+
+  function showIOSPoster() {
+    if (!iosPosterOverlay) return;
+    iosPosterOverlay.classList.remove('hidden');
+  }
+
+  if (iosPosterOverlay) {
+    // Siempre re-mostrar el overlay cuando empieza a cargar un nuevo src
+    videoPlayer.addEventListener('loadstart', showIOSPoster);
+
+    // Ocultar cuando el video realmente tiene datos o está reproduciendo
+    ['canplay', 'canplaythrough', 'loadeddata', 'playing'].forEach(ev =>
+      videoPlayer.addEventListener(ev, hideIOSPoster)
+    );
+
+    // Ante error, quitar el overlay para que el usuario vea el mensaje
+    videoPlayer.addEventListener('error', () => {
+      hideIOSPoster();
+    });
+
+    // FIX: antes se esperaba a `readyState >= 3` (evento 'canplay', que
+    // exige buffer "de sobra": HAVE_FUTURE_DATA) antes de siquiera llamar
+    // a play(). Eso agrega latencia innecesaria: play() es seguro de
+    // llamar en cualquier momento — el navegador lo encola y lo resuelve
+    // en cuanto haya datos mínimos. Ahora se intenta de inmediato al
+    // cargar, y además se reintenta en los primeros eventos disponibles
+    // (loadedmetadata / loadeddata / canplay) por si el intento inicial
+    // fue rechazado por no haber datos todavía. Llamar play() varias
+    // veces es inofensivo: si ya está reproduciendo, es un no-op.
+    {
+      if (videoPlayer.readyState >= 2) {
+        hideIOSPoster();
+      }
+
+      let autoplaySucceeded = false;
+      const tryAutoplay = () => {
+        if (autoplaySucceeded) return;
+        videoPlayer.muted = true;
+        videoPlayer.play().then(() => {
+          autoplaySucceeded = true;
+          // Autoplay exitoso: el evento 'playing' ocultará el overlay.
+          // En iOS NO restauramos el audio automáticamente: un unmute
+          // programático fuera del gesto de autoplay puede ser bloqueado
+          // o, peor, sorprender al usuario con sonido inesperado.
+          if (!videoPlayer._userSetVolume && !isIOS) {
+            setTimeout(() => { videoPlayer.muted = false; }, 100);
+          }
+        }).catch(() => {
+          // Todavía no se pudo — se reintentará en el próximo evento
+          // (loadedmetadata → loadeddata → canplay). Sólo si TODOS
+          // fallan se muestra el botón play como último recurso.
+        });
+      };
+
+      // Intento inmediato: el atributo `autoplay` del HTML ya está
+      // intentando reproducir por su cuenta; este es un refuerzo por si
+      // el navegador lo ignoró (p. ej. cambiaste el src por JS).
+      tryAutoplay();
+
+      // Reintentos en los eventos más tempranos posibles — no esperamos
+      // a 'canplaythrough' (exige demasiado buffer) ni sólo a 'canplay'.
+      ['loadedmetadata', 'loadeddata', 'canplay'].forEach(ev =>
+        videoPlayer.addEventListener(ev, tryAutoplay)
+      );
+
+      // Fallback de seguridad: si tras 5s el autoplay no arrancó,
+      // recién ahí mostramos el botón play para que el usuario lo inicie.
+      setTimeout(() => {
+        if (!autoplaySucceeded && iosPosterOverlay && !iosPosterOverlay.classList.contains('hidden')) {
+          if (iosPosterPlayBtn) iosPosterPlayBtn.style.display = '';
+        }
+      }, 5000);
+    }
+    const startVideoFromPoster = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      videoPlayer.muted = false;
+      videoPlayer.play().then(() => {
+        hideIOSPoster();
+      }).catch(() => {
+        // Si play() falla, quitar overlay para que el usuario use controles
+        hideIOSPoster();
+      });
+    };
+
+    iosPosterPlayBtn?.addEventListener('click', startVideoFromPoster);
+    iosPosterOverlay.addEventListener('click', startVideoFromPoster);
   }
 
   const playPauseBtn = document.getElementById('playPauseBtn');
@@ -19,12 +170,13 @@ document.addEventListener('DOMContentLoaded', function () {
   const forwardBtn = document.getElementById('forwardBtn');
   const volumeBtn = document.getElementById('volumeBtn');
   const volumeSlider = document.getElementById('volumeSlider');
+  const railVolumeBtn = document.getElementById('railVolumeBtn');
   const speedBtn = document.getElementById('speedBtn');
   const speedMenu = document.getElementById('speedMenu');
   const pipBtn = document.getElementById('pipBtn');
   const fullscreenBtn = document.getElementById('fullscreenBtn');
-  const progressBar = document.getElementById('progressBar');
-  const progressFilled = document.getElementById('progressFilled');
+  const progressBar    = document.getElementById('Barprogress');
+  const progressFilled = document.getElementById('Barfilled');
   const currentTimeEl = document.getElementById('currentTime');
   const durationEl = document.getElementById('duration');
   const loadingOverlay = document.getElementById('loadingOverlay');
@@ -62,7 +214,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ── Zoom ──────────────────────────────────────────────────
+  // ── Zoom & Pan ────────────────────────────────────────────
+  // Reglas:
+  //  · zoom = 1  → sin pan, tap = play/pause
+  //  · zoom > 1  → pan libre DENTRO de los límites del contenedor
   let currentZoom = 1;
   const minZoom = 1, maxZoom = 3, zoomStep = 0.1;
   let panX = 0, panY = 0, isDragging = false;
@@ -74,59 +229,121 @@ document.addEventListener('DOMContentLoaded', function () {
     videoPlayer.style.transformOrigin = 'center center';
   }
 
+  // Clamp exacto: los bordes del video nunca salen del contenedor
   function clampPan() {
     if (currentZoom <= 1) { panX = 0; panY = 0; return; }
-    const mx = (videoPlayer.offsetWidth * (currentZoom - 1)) / (2 * currentZoom);
+    // El translate actúa en coordenadas pre-escala, por eso se divide por zoom
+    const mx = (videoPlayer.offsetWidth  * (currentZoom - 1)) / (2 * currentZoom);
     const my = (videoPlayer.offsetHeight * (currentZoom - 1)) / (2 * currentZoom);
     panX = Math.max(-mx, Math.min(mx, panX));
     panY = Math.max(-my, Math.min(my, panY));
   }
 
-  videoPlayer.addEventListener('mousedown', e => {
-    if (currentZoom <= 1) return;
-    isDragging = true;
-    dragStartX = e.clientX; dragStartY = e.clientY;
-    panStartX = panX; panStartY = panY;
-    videoPlayer.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    panX = panStartX + (e.clientX - dragStartX) / currentZoom;
-    panY = panStartY + (e.clientY - dragStartY) / currentZoom;
-    clampPan(); applyTransform();
-  });
-  document.addEventListener('mouseup', e => {
-    if (!isDragging) return;
-    isDragging = false;
-    videoPlayer.style.cursor = currentZoom > 1 ? 'grab' : '';
-    if (Math.abs(e.clientX - dragStartX) < 5 && Math.abs(e.clientY - dragStartY) < 5) togglePlayPause();
-  });
+  // ── Detección de dispositivo ──────────────────────────────
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-  let touchStartX = 0, touchStartY = 0, touchPanStartX = 0, touchPanStartY = 0, touchMoved = false;
-  videoPlayer.addEventListener('touchstart', e => {
-    if (currentZoom <= 1) return;
-    const t = e.touches[0];
-    touchStartX = t.clientX; touchStartY = t.clientY;
-    touchPanStartX = panX; touchPanStartY = panY; touchMoved = false;
-  }, { passive: true });
-  videoPlayer.addEventListener('touchmove', e => {
-    if (currentZoom <= 1) return;
-    const t = e.touches[0];
-    const dx = (t.clientX - touchStartX) / currentZoom;
-    const dy = (t.clientY - touchStartY) / currentZoom;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) touchMoved = true;
-    panX = touchPanStartX + dx; panY = touchPanStartY + dy;
-    clampPan(); applyTransform(); e.preventDefault();
-  }, { passive: false });
-  videoPlayer.addEventListener('touchend', e => {
-    if (currentZoom <= 1 && !touchMoved) { e.preventDefault(); togglePlayPause(); }
-  }, { passive: false });
+  // ── DESKTOP: drag con mouse ───────────────────────────────
+  if (!isTouchDevice) {
+    videoPlayer.addEventListener('mousedown', e => {
+      if (currentZoom <= 1) return;         // sin zoom → no arrastra
+      isDragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      panStartX = panX; panStartY = panY;
+      videoPlayer.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      panX = panStartX + (e.clientX - dragStartX) / currentZoom;
+      panY = panStartY + (e.clientY - dragStartY) / currentZoom;
+      clampPan(); applyTransform();
+    });
+    document.addEventListener('mouseup', e => {
+      if (!isDragging) return;
+      isDragging = false;
+      videoPlayer.style.cursor = currentZoom > 1 ? 'grab' : '';
+      if (Math.abs(e.clientX - dragStartX) < 5 && Math.abs(e.clientY - dragStartY) < 5) togglePlayPause();
+    });
+  }
+
+  // ── MOBILE: gestos táctiles ───────────────────────────────
+  // · 1 dedo  → pan (solo si zoom > 1)  /  tap → play/pause
+  // · 2 dedos → pinch para zoom
+  if (isTouchDevice) {
+    videoPlayer.style.touchAction = 'none'; // capturamos todos los gestos nosotros
+
+    let touchStartX = 0, touchStartY = 0;
+    let touchPanStartX = 0, touchPanStartY = 0;
+    let touchMoved = false;
+    let isPinching = false;
+    let pinchStartDist = 0, pinchStartZoom = 1;
+
+    // Distancia entre dos puntos táctiles
+    function getTouchDist(e) {
+      const a = e.touches[0], b = e.touches[1];
+      return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    }
+
+    videoPlayer.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        // Inicio de pinch
+        isPinching = true;
+        touchMoved = true; // evita toggle play/pause al soltar
+        pinchStartDist = getTouchDist(e);
+        pinchStartZoom = currentZoom;
+        e.preventDefault();
+      } else if (e.touches.length === 1) {
+        // Inicio de pan o tap
+        isPinching = false;
+        const t = e.touches[0];
+        touchStartX = t.clientX; touchStartY = t.clientY;
+        touchPanStartX = panX; touchPanStartY = panY;
+        touchMoved = false;
+      }
+    }, { passive: false });
+
+    videoPlayer.addEventListener('touchmove', e => {
+      e.preventDefault(); // siempre: evita scroll/zoom nativo del browser
+
+      if (e.touches.length === 2 && isPinching) {
+        // ── Pinch zoom ──
+        const newDist = getTouchDist(e);
+        const scale  = newDist / pinchStartDist;
+        setZoom(pinchStartZoom * scale);
+
+      } else if (e.touches.length === 1 && !isPinching) {
+        // ── Pan 1 dedo (solo con zoom activo) ──
+        if (currentZoom <= 1) return;
+        const t = e.touches[0];
+        const dx = (t.clientX - touchStartX) / currentZoom;
+        const dy = (t.clientY - touchStartY) / currentZoom;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+          touchMoved = true;
+          panX = touchPanStartX + dx;
+          panY = touchPanStartY + dy;
+          clampPan(); applyTransform();
+        }
+      }
+    }, { passive: false });
+
+    videoPlayer.addEventListener('touchend', e => {
+      if (e.touches.length < 2) isPinching = false;
+      if (e.touches.length === 0 && !touchMoved) {
+        e.preventDefault();
+        togglePlayPause();
+        // NOTA: requestMobileLandscape() se removió de aquí.
+        // Antes se ejecutaba en CUALQUIER tap (incluido play/pause),
+        // forzando rotación a landscape sin que el usuario lo pidiera.
+        // Ahora solo se dispara desde el botón de fullscreen (ver requestFS()).
+      }
+    }, { passive: false });
+  }
+
 
   function setZoom(level) {
     const prev = currentZoom;
     currentZoom = Math.max(minZoom, Math.min(maxZoom, level));
-    if (currentZoom === 1) { panX = 0; panY = 0; }
+    // Al cambiar zoom se reclampea sin perder el encuadre del usuario
     if (prev !== currentZoom) clampPan();
     applyTransform();
     videoPlayer.style.cursor = currentZoom > 1 ? 'grab' : '';
@@ -296,6 +513,7 @@ document.addEventListener('DOMContentLoaded', function () {
     showProcModal('processing', 'Procesando video…');
 
     const videoUrl = videoPlayer.currentSrc || videoPlayer.src;
+    const videoMeta = window.POMPLAY_VIDEO || {};
     const clipData = {
       videoUrl,
       startTime: clipStart,
@@ -305,6 +523,9 @@ document.addEventListener('DOMContentLoaded', function () {
       zoom: currentZoom,
       panX,
       panY,
+      codigoVideo: videoMeta.codigo || null,
+      idLocal: videoMeta.id_local || null,
+      codigoCancha: videoMeta.codigo_cancha || null,
     };
 
     log('Enviando clip:', clipData);
@@ -460,39 +681,88 @@ document.addEventListener('DOMContentLoaded', function () {
   const availableCameras = window.VIDEO_CAMERAS || [];
 
   function initCameraSelector() {
-    if (!availableCameras || availableCameras.length <= 1) return;
+    // Guarda: evitar doble inserción si ya existe el selector en el DOM
+    if (document.getElementById('cameraSelector')) return;
+
+    if (!Array.isArray(availableCameras) || availableCameras.length < 1) return;
+
+    // Normaliza los nombres de propiedad (el backend puede usar distintos campos)
+    const cams = availableCameras.map((cam, idx) => ({
+      id: String(cam.id_camara ?? cam.id ?? cam.camera_id ?? idx),
+      url: cam.video_url ?? cam.url ?? cam.videoUrl ?? '',
+      nombre: cam.nombre ?? cam.name ?? cam.label ?? ('Cam ' + (idx + 1)),
+    }));
+
+    // FIX: Siempre inicializar el ID de la cámara actual desde la primera
+    // cámara disponible, aunque haya solo 1. Esto es necesario para que
+    // el guard en switchCamera funcione correctamente (currentCameraId !== null).
+    if (cams[0]) currentCameraId = cams[0].id;
+
+    // Solo mostrar el selector visual si hay más de una cámara
+    if (cams.length <= 1) return;
+
+    const wrap = document.getElementById('videoPlayerWrap');
+    if (!wrap) return;
+
     const html = `<div class="camera-selector" id="cameraSelector">
-      ${availableCameras.map((cam, idx) => `
+      ${cams.map((cam, idx) => `
         <button class="cam-btn ${idx === 0 ? 'active' : ''}"
-                data-camera-id="${cam.id_camara}"
-                data-video-url="${cam.video_url}">
-          ${cam.nombre || 'Cam ' + (idx + 1)}
+                data-camera-id="${cam.id}"
+                data-video-url="${cam.url}">
+          ${cam.nombre}
         </button>`).join('')}
     </div>`;
-    document.getElementById('videoPlayerWrap')?.insertAdjacentHTML('afterbegin', html);
-    document.querySelectorAll('.cam-btn').forEach(btn => {
+
+    wrap.insertAdjacentHTML('afterbegin', html);
+
+    document.querySelectorAll('#cameraSelector .cam-btn').forEach(btn => {
       btn.addEventListener('click', function () {
         switchCamera(this.dataset.cameraId, this.dataset.videoUrl);
-        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#cameraSelector .cam-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
       });
     });
-    if (availableCameras[0]) currentCameraId = availableCameras[0].id_camara;
   }
 
   function switchCamera(cameraId, videoUrl) {
-    if (!videoPlayer || currentCameraId === cameraId) return;
+    // Los valores de dataset siempre son strings — comparar como strings
+    // FIX: también se verifica que currentCameraId no sea null (estado inicial)
+    if (!videoPlayer || (currentCameraId !== null && currentCameraId === String(cameraId))) return;
     if (isClipping) { showToast('⚠ Detén el clip antes de cambiar cámara'); return; }
+    if (!videoUrl) { showToast('⚠ Esta cámara no tiene URL de video'); return; }
+
     const wasPlaying = !videoPlayer.paused;
     const t = videoPlayer.currentTime;
-    videoPlayer.src = videoUrl; videoPlayer.load(); videoPlayer.currentTime = t;
-    if (wasPlaying) videoPlayer.play().catch(() => { });
-    currentCameraId = cameraId;
-    showToast('📹 Cámara cambiada', 'success');
+
+    // En iOS / Android, mostrar el overlay antes de cambiar el src para evitar
+    // pantalla negra mientras carga el nuevo video.
+    if (iosPosterOverlay) showIOSPoster();
+
+    currentCameraId = String(cameraId);
+
+    videoPlayer.src = videoUrl;
+    videoPlayer.load();
+
+    // FIX MÓVIL: en móvil el video no tiene metadatos hasta que carga;
+    // setear currentTime antes de loadedmetadata causa que se ignore o
+    // falle. Esperar el evento antes de hacer seek.
+    if (t > 0) {
+      const onMeta = () => {
+        videoPlayer.removeEventListener('loadedmetadata', onMeta);
+        if (t < (videoPlayer.duration || Infinity)) videoPlayer.currentTime = t;
+        if (wasPlaying) videoPlayer.play().catch(() => {});
+      };
+      videoPlayer.addEventListener('loadedmetadata', onMeta);
+    } else {
+      if (wasPlaying) videoPlayer.play().catch(() => {});
+    }
+
+    showToast('Cámara cambiada', 'success');
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCameraSelector);
-  else initCameraSelector();
+  // Inicializar una sola vez — el script ya corre después de DOMContentLoaded
+  // porque video-player.js está al final del body.
+  initCameraSelector();
 
   // ── Compartir ─────────────────────────────────────────────
   const shareModal2 = document.getElementById('mobileShareModal');
@@ -746,25 +1016,48 @@ document.addEventListener('DOMContentLoaded', function () {
   videoPlayer.addEventListener('pause', syncPlayIcon);
   videoPlayer.addEventListener('ended', syncPlayIcon);
   playPauseBtn?.addEventListener('click', e => { e.stopPropagation(); togglePlayPause(); });
-  videoPlayer.addEventListener('click', e => { if (currentZoom > 1) return; e.stopPropagation(); togglePlayPause(); });
+  videoPlayer.addEventListener('click', e => {
+    if (currentZoom > 1) return;
+    e.stopPropagation();
+    // FIX iOS: si este es el primer toque y todavía no se desbloqueó
+    // el audio, lo usamos SOLO para eso — no togglear play/pause. Así
+    // el video sigue reproduciendo (no se pausa) y el usuario ya
+    // escucha sonido desde este mismo tap, en vez de necesitar un
+    // segundo toque para "recién" oírlo.
+    if (isIOS && !iosAudioUnlocked) {
+      unlockIOSAudio();
+      return;
+    }
+    togglePlayPause();
+  });
 
   rewindBtn?.addEventListener('click', () => { videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10); });
   forwardBtn?.addEventListener('click', () => { videoPlayer.currentTime = Math.min(videoPlayer.duration || 0, videoPlayer.currentTime + 10); });
 
   // ── Volumen ───────────────────────────────────────────────
   function updateVolumeIcon() {
-    if (!volumeBtn) return;
     const v = videoPlayer.volume;
-    volumeBtn.innerHTML = `<i class="fas ${v === 0 || videoPlayer.muted ? 'fa-volume-mute' : v < 0.5 ? 'fa-volume-down' : 'fa-volume-up'}"></i>`;
+    const iconClass = v === 0 || videoPlayer.muted ? 'fa-volume-mute' : v < 0.5 ? 'fa-volume-down' : 'fa-volume-up';
+    if (volumeBtn) volumeBtn.innerHTML = `<i class="fas ${iconClass}"></i>`;
+    if (railVolumeBtn) railVolumeBtn.innerHTML = `<i class="fas ${iconClass}"></i>`;
   }
-  volumeBtn?.addEventListener('click', () => {
+  function toggleMute() {
     videoPlayer.muted = !videoPlayer.muted;
     if (!videoPlayer.muted && volumeSlider) volumeSlider.value = videoPlayer.volume * 100;
+    // Este botón es un gesto explícito del usuario para controlar el
+    // sonido — cuenta como el "primer toque" válido en iOS, así el
+    // resto de la lógica de autoplay/desmute no vuelve a tocar el
+    // estado de mute por su cuenta después de esto.
+    if (isIOS) iosAudioUnlocked = true;
+    if (!videoPlayer.muted && videoPlayer.paused) videoPlayer.play().catch(() => {});
     updateVolumeIcon();
-  });
+  }
+  volumeBtn?.addEventListener('click', toggleMute);
+  railVolumeBtn?.addEventListener('click', toggleMute);
   volumeSlider?.addEventListener('input', function () {
     videoPlayer.volume = this.value / 100;
     videoPlayer.muted = false;
+    if (isIOS) iosAudioUnlocked = true;
     updateVolumeIcon();
   });
 
@@ -792,40 +1085,363 @@ document.addEventListener('DOMContentLoaded', function () {
   } else if (pipBtn) pipBtn.style.display = 'none';
 
   // ── Fullscreen ────────────────────────────────────────────
-  function requestFS() {
-    if (!document.fullscreenElement) {
-      (videoPlayerWrap.requestFullscreen || videoPlayerWrap.webkitRequestFullscreen || videoPlayerWrap.msRequestFullscreen)?.call(videoPlayerWrap);
-      if (fullscreenBtn) fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-    } else {
-      document.exitFullscreen?.();
-      if (fullscreenBtn) fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-    }
+  // PROBLEMA iOS: .detail-content tiene position:fixed + overflow:hidden + z-index:9000.
+  // Un hijo con position:fixed queda atrapado dentro de ese stacking context en Safari.
+  // SOLUCIÓN ROBUSTA: pseudo-fullscreen vía clases CSS (sin re-parenting en el DOM,
+  // porque mover el <video> en Safari rompe su render pipeline).
+  //
+  // ROTACIÓN: screen.orientation.lock('landscape') NO está soportado en
+  // Safari/WebKit — nunca lo estuvo, y no hay forma de forzar la rotación
+  // física del dispositivo desde JS en iOS. La única alternativa real es
+  // SIMULAR landscape rotando el wrapper con CSS (transform: rotate(90deg))
+  // cuando el teléfono sigue físicamente en portrait. Ver .ios-force-rotate
+  // en video-player.css / video-detail-responsive.css.
+
+  // ── Reubicación de modales durante fullscreen nativo (Android/Desktop) ──
+  // #mobileShareModal, #clipsModal y #clipProcessingModal viven fuera de
+  // videoPlayerWrap en el DOM (son hermanos de .detail-content). La
+  // Fullscreen API nativa solo pinta al elemento que entra en fullscreen
+  // y sus descendientes ("top layer"): todo lo que quede fuera de ese
+  // árbol, aunque tenga z-index altísimo, simplemente no se renderiza.
+  // Por eso los modales no aparecían en Android. Solución: moverlos
+  // dentro de videoPlayerWrap SOLO mientras dure el fullscreen nativo,
+  // y devolverlos a su lugar original al salir.
+  // (videoPlayerWrap no tiene transform en fullscreen nativo — a diferencia
+  // del pseudo-FS de iOS — así que position:fixed en los modales sigue
+  // funcionando igual respecto al viewport una vez reubicados.)
+  const RELOCATE_MODAL_IDS = ['mobileShareModal', 'clipsModal', 'clipProcessingModal'];
+  let relocatedModals = [];
+
+  function relocateModalsIntoFullscreen() {
+    if (relocatedModals.length) return; // ya reubicados
+    relocatedModals = RELOCATE_MODAL_IDS.map(id => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const info = { el, parent: el.parentNode, next: el.nextSibling };
+      videoPlayerWrap.appendChild(el);
+      return info;
+    }).filter(Boolean);
   }
+
+  function restoreModalsFromFullscreen() {
+    if (!relocatedModals.length) return;
+    relocatedModals.forEach(({ el, parent, next }) => {
+      if (next && next.parentNode === parent) parent.insertBefore(el, next);
+      else parent.appendChild(el);
+    });
+    relocatedModals = [];
+  }
+
+  let iosPseudoFS = false;
+
+  function isInFullscreen() {
+    return iosPseudoFS || !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function isPhysicalLandscape() {
+    return window.innerWidth > window.innerHeight;
+  }
+
+  function enterIOSPseudoFS() {
+    if (iosPseudoFS) return;
+    iosPseudoFS = true;
+
+    videoPlayerWrap.classList.add('fullscreen-pseudo');
+    document.documentElement.classList.add('pseudo-fs-active');
+
+    // Se intenta igual por si el navegador lo soporta (Chrome/Android sí lo hace,
+    // pero esta rama es específicamente para iOS/Safari donde fallará en silencio).
+    screen.orientation?.lock?.('landscape').catch(() => {});
+
+    // Si el teléfono sigue en portrait, forzar apariencia landscape con CSS
+    if (!isPhysicalLandscape()) {
+      videoPlayerWrap.classList.add('ios-force-rotate');
+    }
+
+    syncFSIcon();
+  }
+
+  function exitIOSPseudoFS() {
+    if (!iosPseudoFS) return;
+    iosPseudoFS = false;
+    videoPlayerWrap.classList.remove('fullscreen-pseudo', 'ios-force-rotate');
+    document.documentElement.classList.remove('pseudo-fs-active');
+    screen.orientation?.unlock?.();
+    syncFSIcon();
+  }
+
+  // Si el usuario gira físicamente el teléfono estando en pseudo-FS,
+  // quitar la rotación CSS forzada para no rotar dos veces.
+  window.addEventListener('orientationchange', () => {
+    if (!iosPseudoFS) return;
+    videoPlayerWrap.classList.toggle('ios-force-rotate', !isPhysicalLandscape());
+  });
+  window.addEventListener('resize', () => {
+    if (!iosPseudoFS) return;
+    videoPlayerWrap.classList.toggle('ios-force-rotate', !isPhysicalLandscape());
+  });
+
+  function requestFS() {
+    // ── Salir de cualquier modo fullscreen ──
+    if (isInFullscreen()) {
+      if (iosPseudoFS) { exitIOSPseudoFS(); return; }
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+      return;
+    }
+
+    // ── iOS Safari: SIEMPRE pseudo-fullscreen con rotación CSS ──
+    // No se debe intentar la Fullscreen API nativa aquí ni caer a un
+    // fallback que llame a videoPlayer.requestFullscreen(): eso es lo
+    // que antes abría el reproductor nativo de iOS en vez de nuestra UI.
+    if (isIOS) {
+      enterIOSPseudoFS();
+      return;
+    }
+
+    // ── Android / Chrome / Desktop: Fullscreen API estándar (SIN CAMBIOS) ──
+    const target = videoPlayerWrap;
+    const fn = target.requestFullscreen
+            || target.webkitRequestFullscreen
+            || target.mozRequestFullScreen
+            || target.msRequestFullscreen;
+
+    if (!fn) {
+      // Último fallback: pseudo-fullscreen también para escritorios sin soporte
+      enterIOSPseudoFS();
+      return;
+    }
+
+    fn.call(target)
+      .then(() => {
+        // Bloquear orientación landscape en Android (Chrome ≥ 79)
+        if (isTouchDevice && screen.orientation?.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      })
+      .catch(() => {
+        // Fallback: intentar en el propio <video>
+        const vfn = videoPlayer.requestFullscreen || videoPlayer.webkitRequestFullscreen;
+        if (vfn) vfn.call(videoPlayer);
+        else enterIOSPseudoFS(); // último recurso: pseudo-FS
+      });
+  }
+
+  function syncFSIcon() {
+    const icon = isInFullscreen() ? 'fa-compress' : 'fa-expand';
+    if (fullscreenBtn) fullscreenBtn.innerHTML = `<i class="fas ${icon}"></i>`;
+    const railBtn = document.getElementById('railFullscreenBtn');
+    if (railBtn) railBtn.innerHTML = `<i class="fas ${icon}"></i>`;
+  }
+
   fullscreenBtn?.addEventListener('click', requestFS);
   document.getElementById('railFullscreenBtn')?.addEventListener('click', requestFS);
+
+  // Salir del pseudo-FS con Escape (teclado físico o botón Atrás en Android)
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && iosPseudoFS) exitIOSPseudoFS(); });
+
   document.addEventListener('fullscreenchange', () => {
-    if (fullscreenBtn) fullscreenBtn.innerHTML = document.fullscreenElement ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+    syncFSIcon();
+    if (document.fullscreenElement === videoPlayerWrap) {
+      relocateModalsIntoFullscreen();
+    } else if (!document.fullscreenElement) {
+      restoreModalsFromFullscreen();
+      if (screen.orientation?.unlock) screen.orientation.unlock();
+    }
   });
+  document.addEventListener('webkitfullscreenchange', () => {
+    syncFSIcon();
+    if (document.webkitFullscreenElement === videoPlayerWrap) {
+      relocateModalsIntoFullscreen();
+    } else if (!document.webkitFullscreenElement) {
+      restoreModalsFromFullscreen();
+    }
+  });
+  videoPlayer.addEventListener('webkitendfullscreen', syncFSIcon);
+
+
 
   // ── Progreso ──────────────────────────────────────────────
-  videoPlayer.addEventListener('timeupdate', () => {
-    if (!videoPlayer.duration) return;
-    const pct = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+  const progressBuffered = document.getElementById('Barbuffered');
+  const progressHandle   = document.getElementById('Barhandle');
+
+  let isScrubbing = false;   // true mientras el usuario arrastra
+  let wasPlayingBeforeScrub = false;
+  let scrubStartClientX = 0;
+  let scrubStartFrac = 0;
+
+  // FIX: antes el arrastre mapeaba la posición del dedo 1:1 contra
+  // TODO el ancho de la barra (pctFromClientX = posición absoluta).
+  // En un video largo eso es brutal: en una barra de ~300px
+  // representando 60 minutos, mover el dedo 1cm salta varios minutos
+  // — se sentía "demasiado rápido" comparado con apps como YouTube.
+  // Ahora se usa MOVIMIENTO RELATIVO desde el punto donde empezó el
+  // arrastre, multiplicado por un factor de sensibilidad < 1: hace
+  // falta mover el dedo más para avanzar el mismo tiempo de video,
+  // dando control fino real.
+  const SCRUB_SENSITIVITY = 0.4; // 1 = igual que antes (1:1); más bajo = más lento/fino
+
+  // Convierte una coordenada X de pantalla (mouse o touch) en fracción 0..1
+  // dentro de la barra, con clamp para que no se salga del rango.
+  // (Se sigue usando para el punto de partida del drag y para clicks
+  // directos sobre la barra, donde SÍ tiene sentido ir 1:1 al punto tocado).
+  function pctFromClientX(clientX) {
+    const rect = progressBar.getBoundingClientRect();
+    const raw = (clientX - rect.left) / rect.width;
+    return Math.min(1, Math.max(0, raw));
+  }
+
+  // Actualiza visualmente el relleno (sin tocar currentTime todavía;
+  // eso se hace aparte para no generar cientos de seeks por segundo).
+  function paintProgress(frac) {
+    const pct = frac * 100;
     if (progressFilled) progressFilled.style.width = pct + '%';
+    if (progressHandle) progressHandle.style.left = pct + '%';
+  }
+
+  // Pinta la barra de buffer: usa el rango de `buffered` que contiene
+  // (o está más cerca de) currentTime, que es lo que realmente le
+  // importa al usuario ("¿cuánto tengo ya descargado desde donde estoy?").
+  function paintBuffered() {
+    if (!progressBuffered || !videoPlayer.duration) return;
+    const buf = videoPlayer.buffered;
+    if (!buf || buf.length === 0) return;
+    let end = 0;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf.start(i) <= videoPlayer.currentTime && videoPlayer.currentTime <= buf.end(i)) {
+        end = buf.end(i);
+        break;
+      }
+      // fallback: el tramo con el final más lejano
+      if (buf.end(i) > end) end = buf.end(i);
+    }
+    progressBuffered.style.width = (end / videoPlayer.duration * 100) + '%';
+  }
+
+  videoPlayer.addEventListener('timeupdate', () => {
+    if (!videoPlayer.duration || isScrubbing) return; // no pelear con el drag
+    paintProgress(videoPlayer.currentTime / videoPlayer.duration);
     if (currentTimeEl) currentTimeEl.textContent = formatTime(videoPlayer.currentTime);
   });
+  videoPlayer.addEventListener('progress', paintBuffered);
   videoPlayer.addEventListener('loadedmetadata', () => {
     if (durationEl) durationEl.textContent = formatTime(videoPlayer.duration);
-  });
-  progressBar?.addEventListener('click', e => {
-    const rect = progressBar.getBoundingClientRect();
-    videoPlayer.currentTime = ((e.clientX - rect.left) / rect.width) * videoPlayer.duration;
+    paintBuffered();
   });
 
-  // ── Auto-fade controles ───────────────────────────────────
+  function startScrub(clientX) {
+    isScrubbing = true;
+    wasPlayingBeforeScrub = !videoPlayer.paused;
+    videoPlayer.pause(); // evita que 'timeupdate' pise el drag mientras se arrastra
+    progressBar.classList.add('scrubbing');
+    // Punto de partida del arrastre: el primer toque SÍ salta
+    // directamente a la posición tocada (como tocar cualquier parte
+    // de la barra para saltar ahí) — solo el arrastre posterior desde
+    // este punto es relativo/atenuado, no el toque inicial.
+    scrubStartClientX = clientX;
+    scrubStartFrac = pctFromClientX(clientX);
+    paintProgress(scrubStartFrac);
+  }
+  function updateScrub(clientX) {
+    const rect = progressBar.getBoundingClientRect();
+    // Movimiento relativo desde el inicio del drag, atenuado por
+    // SCRUB_SENSITIVITY — así el avance en el video es más lento que
+    // el movimiento real del dedo, permitiendo precisión.
+    const deltaFrac = ((clientX - scrubStartClientX) / rect.width) * SCRUB_SENSITIVITY;
+    const frac = Math.min(1, Math.max(0, scrubStartFrac + deltaFrac));
+    paintProgress(frac);
+    if (currentTimeEl && videoPlayer.duration) {
+      currentTimeEl.textContent = formatTime(frac * videoPlayer.duration);
+    }
+    return frac;
+  }
+  function endScrub(clientX) {
+    if (!isScrubbing) return;
+    const frac = updateScrub(clientX);
+    if (videoPlayer.duration) videoPlayer.currentTime = frac * videoPlayer.duration;
+    isScrubbing = false;
+    progressBar.classList.remove('scrubbing');
+    if (wasPlayingBeforeScrub) {
+      videoPlayer.play().catch(() => {});
+    }
+  }
+
+  // ── Mouse ──
+  progressBar?.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startScrub(e.clientX);
+    const onMove = ev => updateScrub(ev.clientX);
+    const onUp = ev => {
+      endScrub(ev.clientX);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // ── Touch (móvil) ──
+  progressBar?.addEventListener('touchstart', e => {
+    startScrub(e.touches[0].clientX);
+  }, { passive: true });
+  progressBar?.addEventListener('touchmove', e => {
+    if (!isScrubbing) return;
+    e.preventDefault(); // evita que la página haga scroll mientras se arrastra
+    updateScrub(e.touches[0].clientX);
+  }, { passive: false });
+  progressBar?.addEventListener('touchend', e => {
+    endScrub(e.changedTouches[0].clientX);
+  });
+  progressBar?.addEventListener('touchcancel', () => {
+    isScrubbing = false;
+    progressBar.classList.remove('scrubbing');
+  });
+
+  // Click simple (desktop, sin arrastre) sigue funcionando gracias a
+  // mousedown+mouseup en el mismo punto, así que no hace falta un
+  // listener de 'click' aparte.
+
+  // ── Auto-fade controles ─────────────────────────────────
   const wrap = videoPlayerWrap;
-  if (wrap && window.matchMedia('(hover: none)').matches) wrap.classList.add('controls-visible');
-  if (wrap && window.matchMedia('(hover: hover)').matches) {
+
+  
+  if (isIOS && wrap) {
+    // Forzar visible de entrada
+    wrap.classList.add('controls-visible');
+
+    let iosFadeTimer = null;
+    const IOS_FADE_DELAY = 4000; 
+
+    function iosShowControls() {
+      wrap.classList.add('controls-visible');
+      clearTimeout(iosFadeTimer);
+      if (!videoPlayer.paused) {
+        iosFadeTimer = setTimeout(() => wrap.classList.remove('controls-visible'), IOS_FADE_DELAY);
+      }
+    }
+
+  
+    wrap.addEventListener('touchstart', () => iosShowControls(), { passive: true });
+
+    
+    videoPlayer.addEventListener('pause', () => {
+      clearTimeout(iosFadeTimer);
+      wrap.classList.add('controls-visible');
+    });
+    videoPlayer.addEventListener('play', () => {
+      clearTimeout(iosFadeTimer);
+      iosFadeTimer = setTimeout(() => wrap.classList.remove('controls-visible'), IOS_FADE_DELAY);
+    });
+
+   
+    videoPlayer.addEventListener('webkitendfullscreen', () => {
+      wrap.classList.add('controls-visible');
+    });
+
+  } else if (wrap && window.matchMedia('(hover: none)').matches) {
+    // Android / touch no-iOS: siempre visible
+    wrap.classList.add('controls-visible');
+  } else if (wrap && window.matchMedia('(hover: hover)').matches) {
+    // Desktop: mostrar al mover el ratón, ocultar 3 s después de soltar
     let fadeTimer;
     const showCtrls = () => {
       wrap.classList.add('controls-visible'); clearTimeout(fadeTimer);
@@ -839,20 +1455,81 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Loading overlay ───────────────────────────────────────
   function hideLoader() {
     if (!loadingOverlay) return;
-    loadingOverlay.classList.remove('show'); loadingOverlay.style.pointerEvents = 'none';
-    setTimeout(() => { if (!loadingOverlay.classList.contains('show')) loadingOverlay.style.display = 'none'; }, 350);
+    // Early-return: si ya está oculto, no tocar el DOM (se llama muy
+    // seguido desde 'timeupdate' en iOS, ~4 veces por segundo).
+    if (!loadingOverlay.classList.contains('show') && loadingOverlay.style.display === 'none') return;
+    loadingOverlay.classList.remove('show');
+    loadingOverlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+      if (!loadingOverlay.classList.contains('show')) loadingOverlay.style.display = 'none';
+    }, 350);
   }
   function showLoader() {
     if (!loadingOverlay) return;
-    loadingOverlay.style.display = 'flex'; void loadingOverlay.offsetHeight; loadingOverlay.classList.add('show');
+    loadingOverlay.style.display = 'flex';
+    void loadingOverlay.offsetHeight;
+    loadingOverlay.classList.add('show');
   }
-  ['canplay', 'canplaythrough', 'loadeddata', 'loadedmetadata', 'playing'].forEach(ev => videoPlayer.addEventListener(ev, hideLoader));
-  videoPlayer.addEventListener('waiting', showLoader);
-  videoPlayer.addEventListener('stalled', showLoader);
+
+  // Siempre ocultar cuando hay datos o está reproduciendo
+  ['canplay', 'canplaythrough', 'loadeddata', 'loadedmetadata', 'playing'].forEach(ev =>
+    videoPlayer.addEventListener(ev, hideLoader)
+  );
   videoPlayer.addEventListener('error', () => { hideLoader(); showToast('Error al cargar el video'); });
-  const _lt = setTimeout(hideLoader, 5000);
-  videoPlayer.addEventListener('canplay', () => clearTimeout(_lt), { once: true });
-  if (videoPlayer.readyState >= 2) hideLoader();
+
+  if (isIOS) {
+    // iOS Safari NO carga datos del video sin gesto del usuario.
+    // canplay / loadeddata nunca se disparan en page load → pantalla negra + spinner infinito.
+    // Solución: ocultar overlay de inmediato. Mostrar spinner SOLO si el video ya
+    // empezó a reproducir y necesita buffering (waiting tras primer play).
+    hideLoader();
+
+    // FIX: se removió la bandera `iosPlayStarted` que bloqueaba el
+    // spinner hasta que se disparara el primer evento 'play' nativo.
+    // Ese supuesto ("iOS nunca carga datos sin gesto") ya no aplica:
+    // desde que arreglamos el autoplay muted+playsinline+autoplay,
+    // iOS SÍ empieza a cargar datos solo, y el usuario quiere ver el
+    // spinner también durante ESA carga inicial, no solo después del
+    // primer play. Ahora 'waiting'/'stalled' muestran el spinner en
+    // cualquier momento, igual que en Android — el debounce de 400ms
+    // de abajo sigue evitando parpadeos por micro-cortes.
+    let iosWaitingTimer = null;
+
+    // Solo mostrar el spinner si el buffering es real y persiste (>400ms).
+    // Evita el falso "loading" ante seeks normales o micro-cortes de red
+    // que se resuelven solos en milisegundos.
+    function scheduleIOSLoader() {
+      clearTimeout(iosWaitingTimer);
+      iosWaitingTimer = setTimeout(showLoader, 400);
+    }
+    function cancelIOSLoader() {
+      clearTimeout(iosWaitingTimer);
+      // Importante: si el spinner YA se mostró (el timer de 400ms ya corrió),
+      // hay que ocultarlo explícitamente aquí. No basta con esperar el
+      // evento 'playing': en iOS Safari, tras resolverse un 'waiting',
+      // muchas veces NO se vuelve a disparar 'playing', solo 'timeupdate'.
+      // Por eso antes el spinner se quedaba pegado varios segundos.
+      hideLoader();
+    }
+
+    videoPlayer.addEventListener('waiting', scheduleIOSLoader);
+    videoPlayer.addEventListener('stalled', scheduleIOSLoader);
+    ['playing', 'canplay', 'timeupdate'].forEach(ev =>
+      videoPlayer.addEventListener(ev, cancelIOSLoader)
+    );
+  } else {
+    // Android / desktop: mostrar spinner mientras carga datos
+    videoPlayer.addEventListener('waiting', showLoader);
+    videoPlayer.addEventListener('stalled',  showLoader);
+    // Fallback: ocultar tras 3s si canplay no se dispara (Android sin interacción)
+    const _lt = setTimeout(hideLoader, 3000);
+    videoPlayer.addEventListener('canplay', () => clearTimeout(_lt), { once: true });
+    if (videoPlayer.readyState >= 2) {
+      hideLoader();
+    } else {
+      videoPlayer.addEventListener('loadeddata', hideLoader, { once: true });
+    }
+  }
 
   // ── Atajos de teclado ─────────────────────────────────────
   document.addEventListener('keydown', e => {

@@ -12,27 +12,43 @@ if (($body['key'] ?? '') !== $API_KEY) {
     exit;
 }
 
+// Validar campos verdaderamente obligatorios
+// video_url puede estar vacía si ffprobe no pudo leer el archivo (grabación muy corta)
+$required = ['id_local', 'codigo_cancha'];
+foreach ($required as $field) {
+    if (empty($body[$field])) {
+        echo json_encode(['ok' => false, 'error' => "Campo requerido: $field"]);
+        exit;
+    }
+}
+
 try {
     // Generar codigo_video
     $stmt = $pdo->query("SELECT MAX(CAST(SUBSTRING(codigo_video, 4) AS UNSIGNED)) as max FROM video");
     $row  = $stmt->fetch(PDO::FETCH_ASSOC);
     $next = ($row['max'] ?? 0) + 1;
-    $codigoVideo = 'VID' . str_pad($next, 3, '0', STR_PAD_LEFT);
+    $codigoVideo = 'V' . str_pad($next, 3, '0', STR_PAD_LEFT);
+
+    // Convertir duracion HH:MM:SS a segundos
+    $timeParts = explode(':', $body['duracion']);
+    $seconds = (count($timeParts) === 3) 
+        ? ($timeParts[0] * 3600) + ($timeParts[1] * 60) + $timeParts[2] 
+        : (int)$body['duracion'];
 
     // Descripcion automática con fecha y hora de Lima
     $fecha       = $body['fecha'] ?? date('Y-m-d');
-    $hora        = $body['hora']  ?? date('H:i:s');
+    $hora        = str_replace('-', ':', $body['hora'] ?? date('H:i:s'));
     $descripcion = date('d/m/Y H:i', strtotime("$fecha $hora"));
 
     $pdo->prepare("
         INSERT INTO video (
             codigo_video, id_local, fecha_partido, descripcion,
             hora_partido, codigo_cancha, video_url, duracion,
-            foto_referencia, fecha_registro, estado, es_descargable
+            fecha_registro, estado, es_descargable
         ) VALUES (
             :codigo_video, :id_local, :fecha, :descripcion,
             :hora, :codigo_cancha, :video_url, :duracion,
-            '', CURDATE(), 1, 1
+            CURDATE(), 1, 1
         )
     ")->execute([
         ':codigo_video'  => $codigoVideo,
@@ -42,7 +58,7 @@ try {
         ':descripcion'   => $descripcion,
         ':codigo_cancha' => $body['codigo_cancha'],
         ':video_url'     => $body['video_url'],
-        ':duracion'      => $body['duracion']
+        ':duracion'      => $seconds
     ]);
 
     echo json_encode(['ok' => true, 'codigo_video' => $codigoVideo]);

@@ -487,3 +487,11 @@
   color: var(--color-text-muted, rgba(255,255,255,0.3));
 }
 .vid-modal-meta-item i { color: rgba(255, 255, 255, 0.25); }
+
+/* ── Video modal: forzar visibilidad sin depender solo de .active ──────── */
+#vidModal {
+  display: none;
+}
+#vidModal.active {
+  display: flex !important;
+}

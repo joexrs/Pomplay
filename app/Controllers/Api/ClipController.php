@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controllers\Api;
 
+use App\Repositories\EstadisticasRepository;
+
 /**
  * ClipController — Proxy hacia el VPS para recorte profesional de clips CCTV.
  *
@@ -14,6 +16,11 @@ namespace App\Controllers\Api;
  */
 final class ClipController
 {
+    public function __construct(
+        private EstadisticasRepository $estadisticas
+    ) {
+    }
+
     // URL del convert.php en el VPS
     private const VPS_URL = 'https://cctv.pomplay.com.pe/convert.php';
 
@@ -110,10 +117,13 @@ final class ClipController
         }
 
         // ── Parámetros opcionales ───────────────────────────────────
-        $cameraId = $input['cameraId'] ?? null;
-        $zoom     = (float)($input['zoom'] ?? 1);
-        $panX     = (float)($input['panX'] ?? 0);
-        $panY     = (float)($input['panY'] ?? 0);
+        $cameraId     = $input['cameraId'] ?? null;
+        $codigoVideo  = trim($input['codigoVideo'] ?? '');
+        $idLocal      = isset($input['idLocal']) ? (int) $input['idLocal'] : null;
+        $codigoCancha = trim($input['codigoCancha'] ?? '');
+        $zoom         = (float)($input['zoom'] ?? 1);
+        $panX         = (float)($input['panX'] ?? 0);
+        $panY         = (float)($input['panY'] ?? 0);
 
         // ── Enviar petición al VPS ──────────────────────────────────
         $vpsResult = $this->callVps($videoUrl, $startTime, $endTime, $zoom, $panX, $panY);
@@ -128,6 +138,20 @@ final class ClipController
         }
 
         // ── Respuesta exitosa ───────────────────────────────────────
+        $this->estadisticas->logClip([
+            'codigo_video'  => $codigoVideo !== '' ? $codigoVideo : null,
+            'id_local'      => $idLocal ?: null,
+            'codigo_cancha' => $codigoCancha !== '' ? $codigoCancha : null,
+            'video_url'     => $videoUrl,
+            'clip_url'      => $vpsResult['clipUrl'],
+            'filename'      => $vpsResult['filename'] ?? basename($vpsResult['clipUrl']),
+            'start_time'    => $startTime,
+            'end_time'      => $endTime,
+            'duracion'      => $duration,
+            'id_camara'     => is_numeric($cameraId) ? (int) $cameraId : null,
+            'ip_address'    => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+
         echo json_encode([
             'success'  => true,
             'clipUrl'  => $vpsResult['clipUrl'],

@@ -93,6 +93,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Actualizar logo del propietario si se subió uno nuevo
+        if (!empty($_POST['id_propietario']) && !empty($_FILES['propietario_logo']['tmp_name']) && $_FILES['propietario_logo']['error'] === UPLOAD_ERR_OK) {
+            $logoFile = $_FILES['propietario_logo'];
+            $allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $logoMime = finfo_file($finfo, $logoFile['tmp_name']);
+            finfo_close($finfo);
+
+            $maxSize = 2 * 1024 * 1024; // 2MB
+
+            if (in_array($logoMime, $allowedMimes, true) && $logoFile['size'] <= $maxSize) {
+                $logoData = file_get_contents($logoFile['tmp_name']);
+                $stmtLogo = $pdo->prepare("UPDATE propietarios SET logo = :logo, logo_mime = :mime WHERE id_propietario = :id");
+                $stmtLogo->bindParam(':logo', $logoData, PDO::PARAM_LOB);
+                $stmtLogo->bindParam(':mime', $logoMime);
+                $stmtLogo->bindParam(':id', $_POST['id_propietario'], PDO::PARAM_INT);
+                $stmtLogo->execute();
+            } else {
+                $error = 'El logo no es válido (debe ser PNG/JPG/WEBP y menor a 2MB)';
+            }
+        }
+
         header('Location: ' . $baseUrl . '/admin/locales/index.php?success=1');
         exit;
     } catch (PDOException $e) {
@@ -132,7 +154,7 @@ include '../config.php';
       </div>
     <?php endif; ?>
 
-    <form method="POST" class="adm-form">
+    <form method="POST" class="adm-form" enctype="multipart/form-data">
       <!-- Card: Información del Local -->
       <div class="adm-form-card" style="margin-bottom:24px;">
         <div class="adm-form-heading" style="margin-top:0;">
@@ -205,6 +227,21 @@ include '../config.php';
             <input type="date" id="fecha_fin" name="fecha_fin" class="adm-input"
                    value="<?= $propietario['fecha_vencimiento'] ?? '' ?>">
           </div>
+        </div>
+
+        <div class="adm-field" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.06);">
+          <label class="adm-label" for="propietario_logo">Logo del negocio</label>
+          <?php if (!empty($propietario['logo'])): ?>
+            <div style="margin-bottom:10px;">
+              <img src="<?= $baseUrl ?>/logo.php?id=<?= $propietario['id_propietario'] ?>&t=<?= time() ?>" 
+                   alt="Logo actual" style="max-height:60px;border-radius:8px;background:#fff;padding:6px;">
+            </div>
+          <?php endif; ?>
+          <input type="file" id="propietario_logo" name="propietario_logo" class="adm-input" 
+                 accept="image/png, image/jpeg, image/webp">
+          <small style="color:var(--color-text-muted);font-size:0.8rem;margin-top:4px;display:block;">
+            <i class="fas fa-info-circle"></i> Sube una imagen para reemplazar el logo actual. PNG, JPG o WEBP, máximo 2MB.
+          </small>
         </div>
       </div>
       <?php endif; ?>
