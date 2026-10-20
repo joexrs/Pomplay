@@ -272,6 +272,8 @@ final class ClipController
      * Content-Disposition: attachment para forzar descarga real en el navegador.
      * Necesario porque el atributo `download` en <a> es ignorado para URLs
      * de dominios distintos (cross-origin).
+     *
+     * Usa fopen/fread por bloques para no cargar videos grandes en memoria.
      */
     public function download(): void
     {
@@ -302,32 +304,35 @@ final class ClipController
 
         // Nombre de archivo seguro
         if (empty($filename)) {
-            $filename = basename($parsed['path'] ?? 'clip.mp4');
+            $filename = basename($parsed['path'] ?? 'video.mp4');
         }
-        // Sanitizar: solo caracteres seguros
         $filename = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', $filename);
         if (!str_ends_with(strtolower($filename), '.mp4')) {
             $filename .= '.mp4';
         }
 
-        // Obtener el archivo del VPS via stream
+        // Aumentar tiempos para videos grandes (sin límite de ejecución)
+        @set_time_limit(0);
+        @ini_set('memory_limit', '128M');
+
+        // Abrir stream del archivo en el VPS sin cargar todo en RAM
         $ctx = stream_context_create([
             'http' => [
                 'method'        => 'GET',
-                'timeout'       => 60,
+                'timeout'       => 600,     // 10 min máximo para streamear el archivo
                 'ignore_errors' => true,
             ],
         ]);
 
-        $data = @file_get_contents($clipUrl, false, $ctx);
+        $stream = @fopen($clipUrl, 'rb', false, $ctx);
 
-        if ($data === false || strlen($data) < 1000) {
+        if (!$stream) {
             http_response_code(502);
-            echo 'No se pudo obtener el clip del servidor';
+            echo 'No se pudo conectar al servidor de video';
             return;
         }
 
-        // Verificar HTTP status del VPS
+        // Leer código HTTP de la respuesta del VPS
         $httpCode = 200;
         if (isset($http_response_header)) {
             foreach ($http_response_header as $h) {
@@ -336,19 +341,104 @@ final class ClipController
                 }
             }
         }
+
         if ($httpCode >= 400) {
+            fclose($stream);
             http_response_code(502);
-            echo 'El clip no está disponible (HTTP ' . $httpCode . ')';
+            echo 'El archivo no está disponible (HTTP ' . $httpCode . ')';
             return;
         }
 
-        // Servir con cabeceras de descarga forzada
+        // Intentar obtener Content-Length del VPS para pasarlo al browser
+        $contentLength = null;
+        foreach ($http_response_header as $h) {
+            if (stripos($h, 'Content-Length:') === 0) {
+                $contentLength = trim(substr($h, strlen('Content-Length:')));
+                break;
+            }
+        }
+
+        // Emitir cabeceras de descarga
         header('Content-Type: video/mp4');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Length: ' . strlen($data));
+        if ($contentLength !== null) {
+            header('Content-Length: ' . $contentLength);
+        }
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
 
-        echo $data;
+        // Limpiar cualquier buffer de salida previo
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        // Streamear el archivo en bloques de 256 KB → memoria constante
+        while (!feof($stream)) {
+            $chunk = fread($stream, 262144); // 256 KB
+            if ($chunk === false) break;
+            echo $chunk;
+            flush();
+        }
+
+        fclose($stream);
+    }
+
+    /** Descarga completa por una ruta propia para archivos largos. */
+    public function downloadFullVideo(): void
+    {
+        $url = trim($_GET['url'] ?? '');
+        if (!$this->isAllowedVideoUrl($url)) {
+            http_response_code($url === '' ? 400 : 403);
+            echo $url === '' ? 'URL requerida' : 'Dominio no permitido';
+            return;
+        }
+
+        // Reutiliza el streamer de memoria constante y los mismos headers de descarga.
+        $_GET['url'] = $url;
+        $_GET['filename'] = trim($_GET['filename'] ?? 'video_completo.mp4');
+        $this->download();
+    }
+
+    /** Comprueba en el VPS si el video original ya está accesible. */
+    public function checkFullVideo(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $url = trim($_GET['url'] ?? '');
+        if (!$this->isAllowedVideoUrl($url)) {
+            http_response_code($url === '' ? 400 : 403);
+            echo json_encode(['ready' => false, 'error' => $url === '' ? 'URL requerida' : 'Dominio no permitido']);
+            return;
+        }
+
+        if (!function_exists('curl_init')) {
+            http_response_code(503);
+            echo json_encode(['ready' => false, 'error' => 'No está disponible la comprobación del servidor']);
+            return;
+        }
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_NOBODY => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        echo json_encode(['ready' => $status >= 200 && $status < 400, 'error' => $status >= 400 ? 'El archivo aún no está disponible (HTTP ' . $status . ')' : ($error ?: null)]);
+    }
+
+    private function isAllowedVideoUrl(string $url): bool
+    {
+        $parsed = parse_url($url);
+        $host = strtolower($parsed['host'] ?? '');
+        foreach (self::ALLOWED_VIDEO_HOSTS as $allowedHost) {
+            if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) return true;
+        }
+        return false;
     }
 }
+

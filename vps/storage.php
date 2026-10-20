@@ -169,6 +169,9 @@ switch ($action) {
     //   orig_ext      : extensión original (mp4, etc.)
     //   total_chunks  : total de chunks esperados
     case 'finalize_upload':
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+
         $upload_id     = preg_replace('/[^A-Za-z0-9_-]/', '', trim($_POST['upload_id']    ?? ''));
         $id_local      = (int) ($_POST['id_local']      ?? 0);
         $codigo_cancha = preg_replace('/[^A-Za-z0-9]/', '', trim($_POST['codigo_cancha']  ?? ''));
@@ -244,9 +247,7 @@ switch ($action) {
                 fclose($finalHandle);
                 jsonResponse(['ok' => false, 'error' => 'No se pudo leer el chunk: ' . basename($chunkFile)]);
             }
-            while (!feof($chunkHandle)) {
-                fwrite($finalHandle, fread($chunkHandle, 8192)); // leer de 8KB en 8KB
-            }
+            stream_copy_to_stream($chunkHandle, $finalHandle);
             fclose($chunkHandle);
         }
         fclose($finalHandle);

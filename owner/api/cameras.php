@@ -1,13 +1,43 @@
 <?php
 
-// FIX: se necesita la sesión para obtener id_local y así distinguir entre
-// locales distintos que reusan el mismo codigo_cancha (ver WHERE más abajo).
-session_start();
+// Configuración de sesión extendida para evitar desconexiones en grabaciones largas (1 a 2+ horas)
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.gc_maxlifetime', 86400); // 24 horas
+    session_set_cookie_params([
+        'lifetime' => 86400,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    session_start();
+}
 
 ob_start();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 include __DIR__ . '/../../conexion.php';
+
+// ── Sistema de Log de Interferencias y Eventos (.txt) ─────────────────────────
+function logInterferencia(string $nivel, string $mensaje, array $detalles = []): void
+{
+    try {
+        $logDir = dirname(__DIR__, 2) . '/logs';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0777, true);
+        }
+        $logFile = $logDir . '/interferencias_grabacion.txt';
+        $timestamp = date('Y-m-d H:i:s');
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $detalleStr = '';
+        if (!empty($detalles)) {
+            $detalleStr = ' | ' . json_encode($detalles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+        $linea = "[$timestamp] [IP:$ip] [$nivel] $mensaje$detalleStr" . PHP_EOL;
+        @file_put_contents($logFile, $linea, FILE_APPEND | LOCK_EX);
+    } catch (\Throwable $t) {
+        error_log("Error al escribir en interferencias_grabacion.txt: " . $t->getMessage());
+    }
+}
 
 function jsonResponse(array $payload): void
 {
@@ -32,23 +62,45 @@ if (empty($codigo) && $action !== 'keepalive') {
     jsonResponse(['ok' => false, 'error' => 'Parámetro codigo requerido']);
 }
 
-// ── Keepalive: renovar sesión sin llegar a validar id_local ni consultar BD ───
+// ── Keepalive: renovar sesión y registrar latidos en segundo plano ────────────
 if ($action === 'keepalive') {
-    // Solo necesitamos que la sesión siga activa; al llamar session_start()
-    // ya se renueva el tiempo de vida del cookie de sesión.
+    $reqLocal = !empty($_GET['id_local']) ? (int)$_GET['id_local'] : null;
+    if ($reqLocal && empty($_SESSION['id_local'])) {
+        $_SESSION['id_local'] = $reqLocal;
+    }
+
+    // Registrar latido en el .txt periódicamente (cada 10 min) para auditar segundo plano
+    $ultimoLog = $_SESSION['ultimo_keepalive_log'] ?? 0;
+    if (time() - $ultimoLog >= 600) {
+        $_SESSION['ultimo_keepalive_log'] = time();
+        logInterferencia('KEEPALIVE', 'Navegador activo en segundo plano (Heartbeat OK)', [
+            'id_local' => $_SESSION['id_local'] ?? $reqLocal,
+            'hora'     => date('H:i:s')
+        ]);
+    }
+
     jsonResponse(['ok' => true, 'ts' => time()]);
 }
 
 // ── 1. Obtener TODAS las cámaras de esta cancha desde BD local ────────────────
-// FIX: codigo_cancha NO es único globalmente (solo es único junto con id_local,
-// ver UNIQUE KEY uq_local_codigo(id_local, codigo_cancha) en la tabla `cancha`).
-// Si dos locales distintos reusan el mismo código (ej. 'C01'), la consulta
-// anterior (solo WHERE c.codigo_cancha = ?) devolvía canchas de AMBOS locales,
-// multiplicando el JOIN con camara y duplicando cámaras (ej. "4/4 cámaras"
-// cuando en realidad eran 2). Se filtra ahora también por id_local de sesión.
 $sessionLocalId = $_SESSION['id_local'] ?? null;
+$paramLocalId   = !empty($_GET['id_local']) ? (int)$_GET['id_local'] : null;
+
+// Recuperación de seguridad si la sesión expiró pero el cliente envió su id_local
+if (empty($sessionLocalId) && !empty($paramLocalId)) {
+    try {
+        $stmtVal = $pdo->prepare("SELECT 1 FROM cancha WHERE id_local = ? AND codigo_cancha = ? LIMIT 1");
+        $stmtVal->execute([$paramLocalId, $codigo]);
+        if ($stmtVal->fetchColumn()) {
+            $sessionLocalId = $paramLocalId;
+            $_SESSION['id_local'] = $paramLocalId;
+            logInterferencia('SESION_RECUPERADA', "id_local ($paramLocalId) restaurado exitosamente para Cancha: $codigo");
+        }
+    } catch (PDOException) {}
+}
 
 if (empty($sessionLocalId)) {
+    logInterferencia('ERROR_SESION', "Acción '$action' rechazada para Cancha: $codigo por sesión expirada o sin id_local");
     jsonResponse(['ok' => false, 'error' => 'Sesión inválida: no se encontró id_local. Vuelve a iniciar sesión.']);
 }
 
@@ -135,6 +187,10 @@ function callVPSParallel(string $action, string $codigo, array $camaras, ?int $i
 
         if ($err || $resp === false) {
             $decoded = ['ok' => false, 'error' => 'VPS inalcanzable: ' . $err, 'activa' => false, 'grabando' => false];
+            logInterferencia('INTERFERENCIA_RED', "Fallo al comunicar con VPS ($action) en Cancha: $codigo (Cam: $pos)", [
+                'curl_error' => $err,
+                'cam_pos'    => $pos
+            ]);
         } else {
             // Limpiar la respuesta: descartar cualquier texto antes del primer { o [
             // (el VPS puede imprimir "php\n\n" u otro texto antes del JSON)
@@ -274,6 +330,14 @@ switch ($action) {
             $grabandoEnBD = (int)$stmtBD->fetchColumn() > 0;
         } catch (PDOException) {}
 
+        // Registrar alerta si la grabación se cayó en el VPS inesperadamente
+        if ($vpsRespondio && !$anyGrabando && $grabandoEnBD) {
+            logInterferencia('ALERTA_PARADA_INESPERADA', "La grabación en VPS ya no está activa pero en BD figuraba en progreso para Cancha: $codigo. Posible corte de stream o internet.", [
+                'cancha'   => $codigo,
+                'id_local' => $idLocal
+            ]);
+        }
+
         if (ob_get_length()) ob_clean();
         echo json_encode([
             'ok'            => true,
@@ -287,9 +351,7 @@ switch ($action) {
     // ══ START_REC — arrancar TODAS las cámaras en paralelo ════════════════════
     case 'start_rec':
         // GUARD: si ya hay cámaras grabando en BD o un video en estado=0 (en progreso),
-        // rechazar la petición para evitar grabaciones duplicadas / de microsegundos.
-        // Esto ocurre cuando el usuario presiona Grabar creyendo que no graba, pero
-        // el VPS sí sigue grabando (fallo de red temporal en el status check).
+        // rechazar la petición para evitar grabaciones duplicadas.
         $yaGrabando = false;
         foreach ($camaras as $cam) {
             if ($cam['grabando'] === 1) { $yaGrabando = true; break; }
@@ -305,18 +367,23 @@ switch ($action) {
             } catch (PDOException) {}
         }
         if ($yaGrabando) {
+            logInterferencia('ADVERTENCIA', "Intento de iniciar grabación rechazada: ya existe una grabación en curso para Cancha: $codigo", [
+                'id_local' => $idLocal
+            ]);
             jsonResponse([
                 'ok'      => false,
                 'grabando'=> true,
-                'error'   => 'Ya hay una grabación en curso para esta cancha. Deten la grabación actual antes de iniciar una nueva.',
+                'error'   => 'Ya hay una grabación en curso para esta cancha. Detén la grabación actual antes de iniciar una nueva.',
                 'already_recording' => true,
             ]);
         }
 
-        $results   = callVPSParallel('start_rec', $codigo, $camaras, $idLocal);
-        $ok        = false;
-        $iniciadas = 0;
-        $errores   = [];
+        $results     = callVPSParallel('start_rec', $codigo, $camaras, $idLocal);
+        $ok          = false;
+        $iniciadas   = 0;
+        $errores     = [];
+        $horaInicio  = date('H:i:s');
+        $fechaInicio = date('Y-m-d');
 
         foreach ($camaras as $cam) {
             $res = $results[$cam['posicion']] ?? ['ok' => false];
@@ -325,20 +392,62 @@ switch ($action) {
                 $iniciadas++;
                 actualizarGrabando($pdo, $cam['id_camara'], 1);
 
-                // Guardar hora de inicio en sesión (para stop_rec)
-                if (!isset($_SESSION['rec_codigo_video'][$codigo])) {
-                    $_SESSION['rec_codigo_video'][$codigo] = [];
+                // FIX HORA INICIO: Insertar registro preliminar en BD con estado = 0 (en progreso).
+                // De este modo la hora de inicio queda inmortalizada en la BD y no depende de la sesión.
+                try {
+                    $codigoVideo = generarCodigoVideo($pdo);
+                    $descEnCurso = 'Grabación en curso (iniciada ' . date('H:i', strtotime($horaInicio)) . ') — Cam ' . $cam['posicion'];
+
+                    $pdo->prepare("
+                        INSERT INTO video (
+                            codigo_video, id_local, fecha_partido, descripcion,
+                            hora_partido, codigo_cancha, video_url, duracion,
+                            fecha_registro, estado, es_descargable, id_camara
+                        ) VALUES (
+                            :cv, :il, :f, :d, :h, :cc, '', '0',
+                            CURDATE(), 0, 1, :ic
+                        )
+                    ")->execute([
+                        ':cv' => $codigoVideo,
+                        ':il' => $idLocal,
+                        ':f'  => $fechaInicio,
+                        ':d'  => $descEnCurso,
+                        ':h'  => $horaInicio,
+                        ':cc' => $codigo,
+                        ':ic' => $cam['id_camara']
+                    ]);
+
+                    if (!isset($_SESSION['rec_codigo_video'][$codigo])) {
+                        $_SESSION['rec_codigo_video'][$codigo] = [];
+                    }
+                    $_SESSION['rec_codigo_video'][$codigo][$cam['posicion']] = $codigoVideo;
+
+                } catch (PDOException $e) {
+                    error_log("Error al crear registro preliminar de video: " . $e->getMessage());
+                    logInterferencia('ERROR_BD', "Fallo al insertar registro preliminar en BD (Cam {$cam['posicion']}): " . $e->getMessage(), [
+                        'cancha' => $codigo
+                    ]);
                 }
-                $_SESSION['rec_codigo_video'][$codigo][$cam['posicion']] = true;
             } else {
-                $errores[] = $res['error'] ?? 'Error desconocido en cámara ' . $cam['posicion'];
+                $errCam = $res['error'] ?? 'Error desconocido en cámara ' . $cam['posicion'];
+                $errores[] = $errCam;
+                logInterferencia('ERROR_INICIO_CAMARA', "No se pudo iniciar grabación en cámara {$cam['posicion']}: $errCam", [
+                    'cancha' => $codigo,
+                    'stream' => $cam['stream']
+                ]);
             }
         }
 
         if ($ok) {
-            // Guardar la hora exacta en que se presionó el botón "Grabar" (fallback para stop_rec)
-            $_SESSION['rec_start_time'][$codigo] = date('H:i:s');
-            $_SESSION['rec_start_date'][$codigo] = date('Y-m-d');
+            $_SESSION['rec_start_time'][$codigo]      = $horaInicio;
+            $_SESSION['rec_start_date'][$codigo]      = $fechaInicio;
+            $_SESSION['rec_start_timestamp'][$codigo] = time();
+
+            logInterferencia('INICIO_GRABACION', "Grabación iniciada con éxito en Cancha: $codigo ({$iniciadas}/" . count($camaras) . " cámaras)", [
+                'id_local'     => $idLocal,
+                'hora_inicio'  => $horaInicio,
+                'fecha_inicio' => $fechaInicio
+            ]);
         }
 
         if (ob_get_length()) ob_clean();
@@ -355,12 +464,13 @@ switch ($action) {
 
     // ══ STOP_REC — detener TODAS las cámaras y guardar grabaciones en BD ═══════
     case 'stop_rec':
-        $results      = callVPSParallel('stop_rec', $codigo, $camaras, $idLocal);
-        $ok           = false;   // el VPS confirmó el stop de al menos 1 cámara
-        $detenidas    = 0;
-        $errores      = [];      // errores de comunicación con el VPS
-        $dbErrores    = [];      // FIX: errores al guardar en BD, separados de $errores/$ok
+        $results         = callVPSParallel('stop_rec', $codigo, $camaras, $idLocal);
+        $ok              = false;   // el VPS confirmó el stop de al menos 1 cámara
+        $detenidas       = 0;
+        $errores         = [];      // errores de comunicación con el VPS
+        $dbErrores       = [];      // errores al guardar en BD
         $videosGuardados = [];
+        $momentoStop     = time();
 
         foreach ($camaras as $cam) {
             $res = $results[$cam['posicion']] ?? ['ok' => false];
@@ -379,13 +489,10 @@ switch ($action) {
                             ? ($timeParts[0] * 3600) + ($timeParts[1] * 60) + $timeParts[2]
                             : (int)($fi['duration_seconds'] ?? 0);
 
-                        // Obtener hora de inicio guardada en sesión
-                        $recStartHora  = $_SESSION['rec_start_time'][$codigo] ?? date('H:i:s');
-                        $recStartFecha = $_SESSION['rec_start_date'][$codigo] ?? date('Y-m-d');
-
-                        // Verificar si ya existe un registro incompleto en BD
+                        // 1. Buscar si existe el registro preliminar en BD (estado = 0)
                         $stmtBusqueda = $pdo->prepare("
-                            SELECT codigo_video FROM video 
+                            SELECT codigo_video, fecha_partido, hora_partido 
+                            FROM video 
                             WHERE id_local = :id_local 
                               AND codigo_cancha = :codigo_cancha 
                               AND id_camara = :id_camara 
@@ -394,33 +501,78 @@ switch ($action) {
                             LIMIT 1
                         ");
                         $stmtBusqueda->execute([
-                            ':id_local' => $idLocal,
+                            ':id_local'      => $idLocal,
                             ':codigo_cancha' => $codigo,
-                            ':id_camara' => $cam['id_camara']
+                            ':id_camara'     => $cam['id_camara']
                         ]);
                         $registroExistente = $stmtBusqueda->fetch(PDO::FETCH_ASSOC);
 
+                        // 2. Determinación Infalible de HORA y FECHA DE INICIO:
+                        // Prioridad A: Hora guardada en BD al dar "Grabar"
+                        // Prioridad B: Hora calculada matemáticamente: (Hora actual de detención - Duración del video)
+                        // Prioridad C: Hora guardada en sesión PHP (si aún sobrevive)
+                        $metodoHora = 'bd_preliminar';
+                        if ($registroExistente && !empty($registroExistente['hora_partido'])) {
+                            $recStartHora  = $registroExistente['hora_partido'];
+                            $recStartFecha = $registroExistente['fecha_partido'];
+                        } elseif ($durSecs > 0) {
+                            $metodoHora    = 'calculo_duracion';
+                            $tsCalculado   = $momentoStop - $durSecs;
+                            $recStartHora  = date('H:i:s', $tsCalculado);
+                            $recStartFecha = date('Y-m-d', $tsCalculado);
+                        } elseif (!empty($_SESSION['rec_start_time'][$codigo])) {
+                            $metodoHora    = 'sesion';
+                            $recStartHora  = $_SESSION['rec_start_time'][$codigo];
+                            $recStartFecha = $_SESSION['rec_start_date'][$codigo] ?? date('Y-m-d');
+                        } else {
+                            $metodoHora    = 'fallback_ahora';
+                            $recStartHora  = date('H:i:s');
+                            $recStartFecha = date('Y-m-d');
+                        }
+
+                        $horaFinal = str_replace('-', ':', $recStartHora);
+                        $desc = 'Grabación ' . date('d/m/Y H:i', strtotime("$recStartFecha $horaFinal"))
+                              . ' — Cam ' . $cam['posicion'];
+
+                        // 3. Auditoría de posibles cortes de red / caídas de stream durante la grabación
+                        $tsInicioSesion = $_SESSION['rec_start_timestamp'][$codigo] ?? null;
+                        if ($tsInicioSesion) {
+                            $tiempoTranscurrido = $momentoStop - $tsInicioSesion;
+                            // Si estuvo grabando más de 2 min por encima de la duración del video
+                            if ($tiempoTranscurrido > ($durSecs + 120)) {
+                                $minEsperados = round($tiempoTranscurrido / 60, 1);
+                                $minGrabados  = round($durSecs / 60, 1);
+                                logInterferencia('ALERTA_CORTE_STREAM', "Posible corte de internet o cámara en Cancha: $codigo (Cam: {$cam['posicion']}). Tiempo activo en sistema: {$minEsperados} min vs Duración real video: {$minGrabados} min.", [
+                                    'tiempo_esperado_seg' => $tiempoTranscurrido,
+                                    'duracion_video_seg'  => $durSecs,
+                                    'diferencia_perdida'  => ($tiempoTranscurrido - $durSecs) . ' seg'
+                                ]);
+                            }
+                        }
+
                         if ($registroExistente) {
-                            // UPDATE del registro existente
+                            // UPDATE del registro existente con los datos finales
                             $pdo->prepare("
                                 UPDATE video SET
-                                    video_url = :vu,
-                                    duracion  = :dur,
-                                    estado    = 1
+                                    fecha_partido = :f,
+                                    hora_partido  = :h,
+                                    descripcion   = :d,
+                                    video_url     = :vu,
+                                    duracion      = :dur,
+                                    estado        = 1
                                 WHERE codigo_video = :cv
                             ")->execute([
+                                ':f'   => $recStartFecha,
+                                ':h'   => $horaFinal,
+                                ':d'   => $desc,
                                 ':vu'  => $fi['url'],
                                 ':dur' => $durSecs,
                                 ':cv'  => $registroExistente['codigo_video'],
                             ]);
-                            $videosGuardados[] = $registroExistente['codigo_video'];
+                            $codigoVideoGuardado = $registroExistente['codigo_video'];
                         } else {
-                            // INSERT nuevo con la hora de inicio
-                            $codigoVideo = generarCodigoVideo($pdo);
-                            $hora  = str_replace('-', ':', $recStartHora);
-                            $desc  = 'Grabación ' . date('d/m/Y H:i', strtotime("$recStartFecha $hora"))
-                                   . ' — Cam ' . $cam['posicion'];
-
+                            // INSERT nuevo con la hora de inicio determinada
+                            $codigoVideoGuardado = generarCodigoVideo($pdo);
                             $pdo->prepare("
                                 INSERT INTO video (
                                     codigo_video, id_local, fecha_partido, descripcion,
@@ -431,25 +583,50 @@ switch ($action) {
                                     CURDATE(), 1, 1, :ic
                                 )
                             ")->execute([
-                                ':cv'  => $codigoVideo,
+                                ':cv'  => $codigoVideoGuardado,
                                 ':il'  => $idLocal,
                                 ':f'   => $recStartFecha,
                                 ':d'   => $desc,
-                                ':h'   => $hora,
+                                ':h'   => $horaFinal,
                                 ':cc'  => $codigo,
                                 ':vu'  => $fi['url'],
                                 ':dur' => $durSecs,
                                 ':ic'  => $cam['id_camara'],
                             ]);
-                            $videosGuardados[] = $codigoVideo;
                         }
+                        $videosGuardados[] = $codigoVideoGuardado;
+
+                        logInterferencia('FIN_GRABACION', "Grabación guardada con éxito en BD para Cancha: $codigo (Cam: {$cam['posicion']}, Video: $codigoVideoGuardado)", [
+                            'hora_inicio'  => $horaFinal,
+                            'fecha_inicio' => $recStartFecha,
+                            'duracion_hms' => $fi['duration_hms'] ?? gmdate("H:i:s", $durSecs),
+                            'duracion_seg' => $durSecs,
+                            'metodo_hora'  => $metodoHora,
+                            'video_url'    => $fi['url']
+                        ]);
+
                     } catch (PDOException $e) {
                         error_log("ERROR UPDATE/INSERT video cam {$cam['posicion']}: " . $e->getMessage());
                         $dbErrores[] = "Cam {$cam['posicion']}: " . $e->getMessage();
+                        logInterferencia('ERROR_BD', "Fallo al guardar video en BD (Cam {$cam['posicion']}): " . $e->getMessage());
                     }
                 } else {
                     // El VPS no retornó file_info — marcar registro como incompleto si existe
+                    logInterferencia('ERROR_VPS_FILEINFO', "El VPS no devolvió file_info/url para Cancha: $codigo (Cam {$cam['posicion']})", [
+                        'respuesta' => $res
+                    ]);
                     $codigoVideoExistente = $_SESSION['rec_codigo_video'][$codigo][$cam['posicion']] ?? null;
+                    if (!$codigoVideoExistente) {
+                        try {
+                            $stmtBusqIncomp = $pdo->prepare("
+                                SELECT codigo_video FROM video 
+                                WHERE id_local = ? AND codigo_cancha = ? AND id_camara = ? AND estado = 0 
+                                LIMIT 1
+                            ");
+                            $stmtBusqIncomp->execute([$idLocal, $codigo, $cam['id_camara']]);
+                            $codigoVideoExistente = $stmtBusqIncomp->fetchColumn();
+                        } catch (PDOException) {}
+                    }
                     if ($codigoVideoExistente) {
                         try {
                             $pdo->prepare("UPDATE video SET estado = 2 WHERE codigo_video = :cv")
@@ -460,7 +637,11 @@ switch ($action) {
                     $dbErrores[] = "Cam {$cam['posicion']}: el VPS no devolvió file_info/url en la respuesta de stop_rec";
                 }
             } else {
-                $errores[] = $res['error'] ?? 'Error en cámara ' . $cam['posicion'];
+                $errCam = $res['error'] ?? 'Error en cámara ' . $cam['posicion'];
+                $errores[] = $errCam;
+                logInterferencia('ERROR_STOP_CAMARA', "Fallo al detener cámara {$cam['posicion']} en VPS: $errCam", [
+                    'cancha' => $codigo
+                ]);
             }
         }
 
@@ -468,6 +649,7 @@ switch ($action) {
         unset(
             $_SESSION['rec_start_time'][$codigo],
             $_SESSION['rec_start_date'][$codigo],
+            $_SESSION['rec_start_timestamp'][$codigo],
             $_SESSION['rec_codigo_video'][$codigo]
         );
 

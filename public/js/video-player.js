@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
   const videoPlayer = document.getElementById('videoPlayer');
@@ -826,27 +826,103 @@
     }
   });
 
-  // ── Descargar video completo ──────────────────────────────
+  // ── Descargar video completo (descarga directa del original, sin FFmpeg) ─────
+  //
+  // LÓGICA ANTERIOR (causaba HTTP 504):
+  //   Botón → sendClipToBackend() → /api/create-clip → VPS convert.php → FFmpeg
+  //   Para videos de 60-90 min FFmpeg tardaba demasiado y el proxy cortaba la conexión.
+  //
+  // NUEVA LÓGICA:
+  //   El video original ya está en el VPS (fue subido con storage.php).
+  //   Solo necesitamos su URL (videoSrc) y pasarla al proxy /api/download-clip,
+  //   que ya existe y sirve cualquier URL del dominio permitido como descarga forzada.
+  //   Sin FFmpeg → sin timeout → sin 504.
+  //
   downloadFullBtn?.addEventListener('click', async function () {
-    const videoSrc = videoPlayer.currentSrc || videoPlayer.src;
+    // La URL del reproductor puede apuntar al proxy de streaming local. Extraer
+    // la URL original evita encadenar un proxy de descarga a otro proxy.
+    let videoSrc = window.POMPLAY_VIDEO?.download_url || '';
+    if (!/^https?:\/\//i.test(videoSrc)) {
+      try {
+        const playerUrl = new URL(videoPlayer.currentSrc || videoPlayer.src, window.location.href);
+        videoSrc = playerUrl.searchParams.get('url') || videoSrc;
+      } catch (_) { }
+    }
     if (!videoSrc) { showToast('No hay video disponible'); return; }
 
-    this.disabled = true;
-    const orig = this.innerHTML;
-    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    videoPlayer.pause();
+
+    // Mostrar modal de procesamiento
+    showProcModal('processing', 'Preparando descarga…');
+    if (recordBtn) recordBtn.disabled = true;
+    if (clipsBtn)  clipsBtn.disabled  = true;
+    downloadFullBtn.disabled = true;
 
     try {
-      const a = document.createElement('a');
-      a.href = videoSrc;
-      a.download = 'pomplay_video_' + Date.now() + '.mp4';
-      a.target = '_blank';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      showToast('Descargando video…');
-    } catch (e) {
-      err('[downloadFull]', e);
-      showToast('⚠ No se pudo descargar el video');
+      // Construir nombre de archivo descriptivo
+      const videoMeta = window.POMPLAY_VIDEO || {};
+      const codigoVideo   = videoMeta.codigo        || '';
+      const codigoCancha  = videoMeta.codigo_cancha || '';
+      const timestamp     = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const rawName       = [
+        'pomplay',
+        codigoVideo  || null,
+        codigoCancha || null,
+        timestamp,
+      ].filter(Boolean).join('_') + '.mp4';
+
+      // Nombre seguro (sin caracteres raros)
+      const filename = rawName.replace(/[^a-zA-Z0-9_\-.]/g, '_');
+
+      updateProcProgress(25);
+      const checkUrl = (window.POMPLAY_BASE || '') + '/api/check-full-video?url=' + encodeURIComponent(videoSrc);
+      const deadline = Date.now() + 120000;
+      let ready = false;
+      while (Date.now() < deadline) {
+        const response = await fetch(checkUrl, { cache: 'no-store' });
+        const status = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(status?.error || 'El servidor no pudo verificar el video');
+        if (status?.ready) { ready = true; break; }
+        updateProcProgress(Math.min(85, 25 + Math.floor((120000 - (deadline - Date.now())) / 4000)));
+        const subEl = document.getElementById('clipProcSub');
+        if (subEl) subEl.textContent = 'Esperando que el video esté disponible…';
+        await new Promise(resolve => setTimeout(resolve, 4000));
+      }
+      if (!ready) throw new Error('El video sigue sin estar disponible. Inténtalo de nuevo más tarde.');
+
+      updateProcProgress(100);
+      showProcModal('success', 'Iniciando descarga…');
+
+      // Ruta propia para el video completo; no interviene la API de generación de clips.
+      const proxyUrl = (window.POMPLAY_BASE || '')
+        + '/api/download-full-video?url=' + encodeURIComponent(videoSrc)
+        + '&filename=' + encodeURIComponent(filename);
+
+      // Disparar descarga con <a download>
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href     = proxyUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, 600);
+
+      setTimeout(() => {
+        closeProcModal();
+        showToast('✓ Descarga iniciada', 'success');
+      }, 1500);
+
+    } catch (error) {
+      err('[downloadFull]', error);
+      showProcModal('error', error.message || 'No se pudo descargar el video');
     } finally {
-      this.disabled = false; this.innerHTML = orig;
+      if (recordBtn) recordBtn.disabled = false;
+      if (clipsBtn)  clipsBtn.disabled  = false;
+      if (downloadFullBtn) {
+        downloadFullBtn.disabled = false;
+        downloadFullBtn.innerHTML = '<i class="fas fa-download"></i>';
+      }
     }
   });
 

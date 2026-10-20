@@ -19,16 +19,14 @@ final class VideoPinRepository
      * Invalida PINs anteriores, genera uno nuevo, lo hashea y lo guarda.
      *
      * @param string $codigoVideo Código del video
-     * @param int $longitud Longitud del PIN (4 o 6 dígitos)
+     * @param int $longitud Longitud fija de 6 dígitos
      * @param int $minutosExpiracion Minutos hasta que expire el PIN
      * @return array ['pin' => string (texto plano, solo esta vez), 'expira_en' => string]
      */
     public function generatePin(string $codigoVideo, int $longitud = 6, int $minutosExpiracion = 30): array
     {
-        // Validar longitud
-        if (!in_array($longitud, [4, 6], true)) {
-            $longitud = 6;
-        }
+        // La longitud de PIN queda fija en seis dígitos.
+        $longitud = 6;
 
         // Validar minutos
         if ($minutosExpiracion < 5 || $minutosExpiracion > 120) {
@@ -96,7 +94,10 @@ final class VideoPinRepository
         }
 
         // Comparar con password_verify (bcrypt)
-        $isValid = password_verify($pinIngresado, $pin['pin_hash']);
+        // Invalidar PIN antiguos de 4 dígitos aunque sigan dentro de su vigencia.
+        $isValid = (int) ($pin['pin_longitud'] ?? 0) === 6
+            && preg_match('/^\d{6}$/', $pinIngresado) === 1
+            && password_verify($pinIngresado, $pin['pin_hash']);
 
         return ['valid' => $isValid, 'expired' => false, 'not_found' => false];
     }

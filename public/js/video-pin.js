@@ -10,7 +10,7 @@
 
   const BASE = window.POMPLAY_BASE || '';
   const VIDEO_CODE = overlay.dataset.videoCode || '';
-  const PIN_LENGTH = parseInt(overlay.dataset.pinLength || '6', 10);
+  const PIN_LENGTH = 6;
 
   const digits = overlay.querySelectorAll('.pin-digit');
   const submitBtn = overlay.querySelector('#pinSubmitBtn');
@@ -129,14 +129,14 @@
   // ── Actualizar estado del botón ─────────────────────────
   function updateSubmitState() {
     if (submitBtn) {
-      submitBtn.disabled = getPin().length < PIN_LENGTH || isSubmitting;
+      submitBtn.disabled = getPin().length !== PIN_LENGTH || isSubmitting;
     }
   }
 
   // ── Enviar PIN ──────────────────────────────────────────
   async function submitPin() {
     const pin = getPin();
-    if (pin.length < PIN_LENGTH || isSubmitting) return;
+    if (pin.length !== PIN_LENGTH || isSubmitting) return;
 
     isSubmitting = true;
     setLoading(true);

@@ -127,6 +127,16 @@ if ($requestPath === '/api/download-clip' && $method === 'GET') {
     return;
 }
 
+// Descarga del video completo, independiente del flujo de clips.
+if ($requestPath === '/api/download-full-video' && $method === 'GET') {
+    $controllers['apiClip']->downloadFullVideo();
+    return;
+}
+if ($requestPath === '/api/check-full-video' && $method === 'GET') {
+    $controllers['apiClip']->checkFullVideo();
+    return;
+}
+
 
 // Rutas del admin
 if (str_starts_with($requestPath, '/admin/')) {

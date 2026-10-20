@@ -48,7 +48,8 @@ final class VideoPinController
 
         // Obtener parámetros del body
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $longitud = (int) ($input['longitud'] ?? 6);
+        // Los PIN nuevos son siempre de 6 dígitos.
+        $longitud = 6;
         $minutosExpiracion = (int) ($input['minutos_expiracion'] ?? 30);
 
         try {
@@ -113,7 +114,7 @@ final class VideoPinController
         }
 
         // Validar formato (solo dígitos, 4 o 6)
-        if (!preg_match('/^\d{4,6}$/', $pinIngresado)) {
+        if (!preg_match('/^\d{6}$/', $pinIngresado)) {
             http_response_code(400);
             echo json_encode([
                 'success' => false,

@@ -1,0 +1,11 @@
+================================================================================
+POMPLAY CCTV - REGISTRO DE EVENTOS E INTERFERENCIAS DE GRABACIÓN
+================================================================================
+Este archivo audita en tiempo real:
+- Hora exacta de inicio y fin de cada grabación.
+- Estado de streams y conectividad con el VPS.
+- Desconexiones de red, cámaras sin señal o cortes de internet.
+- Duración real del video vs tiempo transcurrido en el sistema.
+- Heartbeats de sesión y diagnóstico en segundo plano.
+================================================================================
+

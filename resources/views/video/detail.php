@@ -34,7 +34,7 @@
 
 <?php if ($video): ?>
 <?php $playableVideoUrl = $videoUrl ?? ($video['video_url'] ?? ''); ?>
-<?php $pinLongitud = 6; // Longitud esperada del PIN ?>
+<?php $pinLongitud = 6; // PIN fijo de 6 dígitos ?>
 
 <?php if (!empty($requiresPin) && empty($hasAccess)): ?>
 <!-- ══ OVERLAY DE PIN — bloquea el video hasta verificar ══ -->
@@ -212,6 +212,14 @@
                 aria-label="Ver clips grabados">
           <i class="fas fa-film"></i>
           <span class="badge-count" id="clipsBadge">0</span>
+        </button>
+
+        <!-- Descargar video completo -->
+        <button class="rail-btn accent"
+                id="downloadFullBtn"
+                title="Descargar video completo"
+                aria-label="Descargar video completo con marca de agua">
+          <i class="fas fa-download"></i>
         </button>
 
         <!-- Volumen — botón fijo en el riel para reactivar sonido
@@ -504,7 +512,8 @@
 window.POMPLAY_VIDEO = {
   codigo: <?= json_encode($codigoVideo, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
   id_local: <?= !empty($video['id_local']) ? (int) $video['id_local'] : 'null' ?>,
-  codigo_cancha: <?= json_encode($video['codigo_cancha'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+  codigo_cancha: <?= json_encode($video['codigo_cancha'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+  download_url: <?= json_encode($video['video_url_original'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
 };
 </script>
 <?php endif; ?>
@@ -516,7 +525,7 @@ window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
 <script src="<?= $baseUrl ?>/public/js/platform-detect.js?v=2.0"></script>
 <script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.1"></script>
 <?php if (!empty($requiresPin) && empty($hasAccess)): ?>
-<script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.0"></script>
+<script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.2"></script>
 <?php endif; ?>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

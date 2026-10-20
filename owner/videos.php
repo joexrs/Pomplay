@@ -393,10 +393,8 @@ $meses = [
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
         <div>
           <label class="adm-label" for="pinGenLongitud" style="font-size:0.8rem;">Dígitos</label>
-          <select id="pinGenLongitud" class="form-control" style="padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#f0f0f5;font-size:0.85rem;width:100%;">
-            <option value="4">4 dígitos</option>
-            <option value="6" selected>6 dígitos</option>
-          </select>
+          <input type="hidden" id="pinGenLongitud" value="6">
+          <div style="padding:10px 12px;color:#f0f0f5;font-size:0.85rem;">6 dígitos</div>
         </div>
         <div>
           <label class="adm-label" for="pinGenMinutos" style="font-size:0.8rem;">Duración</label>

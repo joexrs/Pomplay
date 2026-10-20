@@ -2,7 +2,16 @@
 // ═══════════════════════════════════════════════════════════════
 //  canchas.php — Panel de Administración de Canchas con CCTV
 // ═══════════════════════════════════════════════════════════════
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.gc_maxlifetime', 86400); // 24 horas
+    session_set_cookie_params([
+        'lifetime' => 86400,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    session_start();
+}
 include __DIR__ . '/../conexion.php';
 
 $userId        = $_SESSION['user_id']        ?? null;
@@ -325,6 +334,9 @@ try {
    CCTV Panel — JavaScript
 ═══════════════════════════════════════════════════════════════ */
 
+// ID de local actual del panel para persistencia ante reconexiones
+const CURRENT_LOCAL_ID = <?= json_encode((int)$localId) ?>;
+
 // Estado global de peers WebRTC (indexed por slot 1/2)
 const peers   = { 1: null, 2: null };
 let modalCodigo = null;
@@ -374,7 +386,7 @@ function checkStatus(cod) {
   if (!cod || statusInFlight.has(cod)) return;
   statusInFlight.add(cod);
 
-  fetch(`api/cameras.php?action=status&codigo=${encodeURIComponent(cod)}`)
+  fetch(`api/cameras.php?action=status&codigo=${encodeURIComponent(cod)}&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -447,7 +459,7 @@ function toggleGrabacion(cod) {
     mostrarToast('Tiempo de espera agotado. Verifica la conexión con la cámara.', 'error');
   }, 12000);
 
-  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}`)
+  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -598,7 +610,7 @@ function toggleGrabacionModal(cod, btn) {
   btn.disabled  = true;
   btn.innerHTML = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div> Procesando…';
 
-  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}`)
+  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
@@ -731,40 +743,56 @@ function mostrarToast(mensaje, tipo = 'success') {
   }, 3500);
 }
 
-// ── Heartbeat de sesión ─────────────────────────────────────────────────────
-// Mantiene la sesión PHP activa mientras haya cámaras grabando.
-// Sin esto, la sesión expira (~24 min por defecto en XAMPP) y el próximo
-// llamado a stop_rec falla con "Sesión inválida".
+// ── Heartbeat de sesión en segundo plano ────────────────────────────────────
+// Mantiene la sesión PHP activa mientras haya grabaciones en curso o la página esté abierta.
+// Utiliza un Web Worker en segundo plano para que Chrome y Edge no congelen los temporizadores
+// cuando la pestaña queda minimizada o en segundo plano por 1 a 2 horas.
 (function initSessionHeartbeat() {
-  const INTERVAL_MS = 4 * 60 * 1000; // ping cada 4 minutos
+  const INTERVAL_MS = 2 * 60 * 1000; // ping cada 2 minutos
   let heartbeatTimer = null;
 
   function hayGrabacionActiva() {
-    // Revisar todos los botones de grabación en la página
     return Array.from(document.querySelectorAll('[data-grabando="true"]')).length > 0;
   }
 
   function pingSession() {
-    if (!hayGrabacionActiva()) return; // no desperdiciar recursos
+    if (!hayGrabacionActiva()) return; // no saturar el servidor si no hay cámaras grabando
 
-    fetch('api/cameras.php?action=keepalive')
+    fetch(`api/cameras.php?action=keepalive&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
       .then(r => r.json())
       .then(data => {
         if (!data.ok) {
-          // La sesión expiró incluso con el ping — avisar al usuario
           mostrarToast('⚠ Tu sesión ha expirado. Guarda la grabación y vuelve a iniciar sesión.', 'warning');
-          clearInterval(heartbeatTimer);
         }
       })
       .catch(() => {
-        // Sin conexión — no hacer nada, el usuario verá el error al detener
+        // En caso de caída de internet temporal, la reconexión se intentará en el siguiente ciclo
       });
   }
 
-  // Iniciar el intervalo al cargar la página
-  heartbeatTimer = setInterval(pingSession, INTERVAL_MS);
+  // Web Worker en segundo plano inmune al throttling del navegador
+  try {
+    const workerBlob = new Blob([`
+      setInterval(function() {
+        postMessage('tick');
+      }, ${INTERVAL_MS});
+    `], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(workerBlob));
+    worker.onmessage = function() {
+      if (hayGrabacionActiva()) {
+        pingSession();
+      }
+    };
+  } catch (e) {
+    // Fallback estándar en caso de que los Blob workers estén restringidos
+    heartbeatTimer = setInterval(() => {
+      if (hayGrabacionActiva()) {
+        pingSession();
+      }
+    }, INTERVAL_MS);
+  }
 
-  // También renovar inmediatamente si el usuario vuelve a la pestaña tras inactividad
+  // Renovar inmediatamente si el usuario vuelve a enfocar la pestaña tras inactividad
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && hayGrabacionActiva()) {
       pingSession();

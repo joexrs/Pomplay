@@ -355,6 +355,80 @@ async function iniciarSubida() {
     return alert('Formato no permitido. Use: ' + allowedExt.join(', '));
   }
 
+// ── Subida por chunks al VPS con reintentos ─────────────────────────────────
+async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRetries = 3) {
+  for (let intento = 1; intento <= maxRetries; intento++) {
+    try {
+      const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: formData });
+      const rawText = await response.text();
+      let resp;
+      try {
+        resp = JSON.parse(rawText);
+      } catch (jsonErr) {
+        throw new Error('Respuesta inválida (HTTP ' + response.status + '): ' + rawText.substring(0, 150));
+      }
+      if (!resp.ok) {
+        throw new Error(resp.error || 'Error desconocido del servidor');
+      }
+      return resp;
+    } catch (err) {
+      if (intento < maxRetries) {
+        uploadStatusText.textContent = 'Reintentando chunk ' + (chunkIndex + 1) + '/' + totalChunks + ' (intento ' + (intento + 1) + ')...';
+        await new Promise(res => setTimeout(res, intento * 1000));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+async function finalizeConReintentos(finalFormData, maxRetries = 2) {
+  for (let intento = 1; intento <= maxRetries; intento++) {
+    try {
+      const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: finalFormData });
+      const rawText = await response.text();
+      let finalResp;
+      try {
+        finalResp = JSON.parse(rawText);
+      } catch (jsonErr) {
+        throw new Error('Servidor no devolvió JSON (HTTP ' + response.status + '): ' + rawText.substring(0, 200));
+      }
+      if (!finalResp.ok) {
+        throw new Error(finalResp.error || 'Error al ensamblar archivo');
+      }
+      return finalResp;
+    } catch (err) {
+      if (intento < maxRetries) {
+        uploadStatusText.textContent = 'Reintentando ensamblado (intento ' + (intento + 1) + ')...';
+        await new Promise(res => setTimeout(res, 2000));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+async function iniciarSubida() {
+  // --- Validaciones previas ---
+  const file         = fileInput.files[0];
+  const opt          = canchaSelect.options[canchaSelect.selectedIndex];
+  const codigoCancha = canchaSelect.value;
+  const idLocal      = opt ? opt.getAttribute('data-id-local') : '';
+  const fecha        = getFechaFormatted();
+  const hora         = getHoraFormatted();
+
+  if (!file)         return alert('Seleccione un archivo de video.');
+  if (!codigoCancha) return alert('Seleccione una cancha.');
+  if (!idLocal)      return alert('La cancha seleccionada no tiene local asignado.');
+  if (!fecha)        return alert('Seleccione la fecha del evento.');
+  if (!hora)         return alert('Seleccione la hora del evento.');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const allowedExt = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'ts'];
+  if (!allowedExt.includes(ext)) {
+    return alert('Formato no permitido. Use: ' + allowedExt.join(', '));
+  }
+
   // --- Preparar subida ---
   const uploadId    = generateUploadId();
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
@@ -362,12 +436,16 @@ async function iniciarSubida() {
   btnUploadVps.disabled = true;
   btnUploadVps.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
   uploadWrap.style.display = 'block';
+  uploadBar.style.background = 'linear-gradient(90deg, #6366f1, #8b5cf6)';
+  uploadBar.style.width = '0%';
+  uploadPercentText.textContent = '0%';
+  uploadStatusText.textContent = 'Preparando subida...';
   urlGeneradaWrap.style.display = 'none';
 
   let startTime = Date.now();
   let bytesSent = 0;
 
-  // --- Enviar chunks uno a uno ---
+  // --- Enviar chunks uno a uno con reintentos ---
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end   = Math.min(start + CHUNK_SIZE, file.size);
@@ -382,24 +460,18 @@ async function iniciarSubida() {
     formData.append('orig_ext',     ext);
     formData.append('chunk',        chunk, 'chunk_' + i);
 
-    let resp;
     try {
-      const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: formData });
-      resp = await response.json();
-    } catch (e) {
-      return onUploadError('Error de red en chunk ' + i + ': ' + e.message);
-    }
-
-    if (!resp.ok) {
-      return onUploadError('Error en chunk ' + i + ': ' + (resp.error || 'desconocido'));
+      await uploadChunkConReintentos(formData, i, totalChunks, 3);
+    } catch (err) {
+      return onUploadError('Error en chunk ' + (i + 1) + '/' + totalChunks + ': ' + err.message, uploadId);
     }
 
     // Actualizar progreso
     bytesSent += (end - start);
     const pct       = Math.round((bytesSent / file.size) * 100);
     const elapsed   = (Date.now() - startTime) / 1000;
-    const speed     = bytesSent / elapsed;
-    const remaining = (file.size - bytesSent) / speed;
+    const speed     = bytesSent / (elapsed > 0 ? elapsed : 1);
+    const remaining = (file.size - bytesSent) / (speed > 0 ? speed : 1);
 
     uploadBar.style.width         = pct + '%';
     uploadPercentText.textContent = pct + '%';
@@ -413,6 +485,7 @@ async function iniciarSubida() {
   uploadStatusText.textContent = 'Ensamblando archivo en el servidor...';
   uploadBar.style.width = '100%';
   uploadPercentText.textContent = '100%';
+  uploadSpeedText.textContent = '';
 
   const finalFormData = new FormData();
   finalFormData.append('action',        'finalize_upload');
@@ -427,14 +500,9 @@ async function iniciarSubida() {
 
   let finalResp;
   try {
-    const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: finalFormData });
-    finalResp = await response.json();
-  } catch (e) {
-    return onUploadError('Error al finalizar la subida: ' + e.message);
-  }
-
-  if (!finalResp.ok) {
-    return onUploadError('Error al ensamblar: ' + (finalResp.error || 'desconocido'));
+    finalResp = await finalizeConReintentos(finalFormData, 2);
+  } catch (err) {
+    return onUploadError('Error al ensamblar archivo: ' + err.message, uploadId);
   }
 
   // --- Subida exitosa ---
@@ -455,12 +523,40 @@ async function iniciarSubida() {
   btnActualizar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function onUploadError(msg) {
-  uploadStatusText.textContent = '✗ ' + msg;
+function onUploadError(msg, currentUploadId = '') {
+  uploadStatusText.textContent = '✗ No se pudo completar la subida';
   uploadBar.style.background = '#ef4444';
   btnUploadVps.disabled = false;
   btnUploadVps.innerHTML = '<i class="fas fa-redo"></i> Reintentar subida';
-  alert('Error: ' + msg);
+
+  console.error('Error de subida (detalle técnico):', msg);
+  registrarLogSubida(msg, currentUploadId);
+  alert('No se pudo completar la subida del video. Verifica tu conexión e inténtalo de nuevo.');
+}
+
+function registrarLogSubida(errorTecnico, currentUploadId = '') {
+  try {
+    const file = fileInput.files[0];
+    const payload = {
+      error_message: errorTecnico,
+      file_name: file ? file.name : 'Desconocido',
+      file_size: file ? formatBytes(file.size) : '0',
+      codigo_cancha: canchaSelect ? canchaSelect.value : '',
+      id_local: (canchaSelect.options[canchaSelect.selectedIndex] ? canchaSelect.options[canchaSelect.selectedIndex].getAttribute('data-id-local') : '') || '',
+      upload_id: currentUploadId || '',
+      context: 'admin/videos/edit.php'
+    };
+
+    fetch('procesos/log_upload_error.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(function (e) {
+      console.warn('No se pudo enviar al log:', e);
+    });
+  } catch (e) {
+    console.warn('Error al recopilar log:', e);
+  }
 }
 
 // ── Validar antes de enviar el formulario final ──────────────────────────────
