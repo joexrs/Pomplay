@@ -21,12 +21,6 @@ final class ClipController
     ) {
     }
 
-    // URL del convert.php en el VPS
-    private const VPS_URL = 'https://cctv.pomplay.com.pe/convert.php';
-
-    // Clave compartida con el VPS
-    private const VPS_KEY = '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';
-
     // Timeout máximo para la petición al VPS (segundos)
     private const VPS_TIMEOUT = 120;
 
@@ -190,7 +184,7 @@ final class ClipController
     ): array {
         $postData = http_build_query([
             'mode'      => 'clip',
-            'key'       => self::VPS_KEY,
+            'key'       => (string) env('VPS_KEY', ''),
             'video_url' => $videoUrl,
             'start'     => $startTime,
             'end'       => $endTime,
@@ -204,14 +198,15 @@ final class ClipController
                 'method'        => 'POST',
                 'header'        => "Content-Type: application/x-www-form-urlencoded\r\n"
                                  . "Content-Length: " . strlen($postData) . "\r\n"
-                                 . "X-Api-Key: " . self::VPS_KEY . "\r\n",
+                                 . "X-Api-Key: " . (string) env('VPS_KEY', '') . "\r\n",
                 'content'       => $postData,
                 'timeout'       => self::VPS_TIMEOUT,
                 'ignore_errors' => true,
             ],
         ]);
 
-        $raw = @file_get_contents(self::VPS_URL, false, $ctx);
+        $vpsUrl = (string) env('VPS_CONVERT_URL', 'https://cctv.pomplay.com.pe/convert.php');
+        $raw = @file_get_contents($vpsUrl, false, $ctx);
 
         if ($raw === false) {
             return ['success' => false, 'error' => 'No se pudo conectar al servidor de procesamiento'];
@@ -393,10 +388,158 @@ final class ClipController
             return;
         }
 
-        // Reutiliza el streamer de memoria constante y los mismos headers de descarga.
-        $_GET['url'] = $url;
-        $_GET['filename'] = trim($_GET['filename'] ?? 'video_completo.mp4');
-        $this->download();
+        // Mandar el navegador al VPS para que el hosting compartido no tenga
+        // que mantener abierta una conexión PHP durante toda la transferencia.
+        $parts = parse_url($url);
+        $videoPath = rawurldecode($parts['path'] ?? '');
+        if (strtolower($parts['host'] ?? '') === 'cctv.pomplay.com.pe'
+            && preg_match('#^/videos/(\d+)/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+\.mp4)$#i', $videoPath, $matches)) {
+            $secret = (string) env('VPS_KEY', '');
+            if ($secret !== '') {
+                $relativePath = $matches[1] . '/' . $matches[2] . '/' . $matches[3];
+                $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', trim($_GET['filename'] ?? basename($relativePath)));
+                if (!str_ends_with(strtolower($filename), '.mp4')) $filename .= '.mp4';
+                $expires = time() + 21600;
+                $signature = hash_hmac('sha256', $relativePath . "\n" . $filename . "\n" . $expires, $secret);
+                $downloadUrl = 'https://cctv.pomplay.com.pe/download.php?' . http_build_query([
+                    'path' => $relativePath,
+                    'filename' => $filename,
+                    'expires' => $expires,
+                    'signature' => $signature,
+                ]);
+                header('Cache-Control: no-store');
+                header('Location: ' . $downloadUrl, true, 302);
+                return;
+            }
+        }
+
+        if (!function_exists('curl_init')) {
+            http_response_code(503);
+            echo 'El servidor no tiene cURL habilitado para descargar videos grandes';
+            return;
+        }
+
+        $filename = trim($_GET['filename'] ?? 'video_completo.mp4');
+        $filename = preg_replace('/[^a-zA-Z0-9_\\-.]/', '_', $filename);
+        if (!str_ends_with(strtolower($filename), '.mp4')) $filename .= '.mp4';
+
+        @set_time_limit(0);
+        @ini_set('memory_limit', '128M');
+        while (ob_get_level() > 0) @ob_end_clean();
+
+        // LiteSpeed/PHP puede no exponer Content-Range del origen al callback;
+        // obtener el tamaño por HEAD permite reconstruirlo para reanudaciones.
+        $totalSize = null;
+        $head = curl_init($url);
+        curl_setopt_array($head, [
+            CURLOPT_NOBODY => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        curl_exec($head);
+        $headSize = curl_getinfo($head, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T);
+        if (is_numeric($headSize) && (int) $headSize > 0) $totalSize = (int) $headSize;
+        curl_close($head);
+
+        $status = 0;
+        $contentLength = null;
+        $contentRange = null;
+        $contentType = 'video/mp4';
+        $started = false;
+        $transferred = 0;
+        $clientRange = trim($_SERVER['HTTP_RANGE'] ?? '');
+        if ($clientRange !== '' && !preg_match('/^bytes=\d*-\d*$/i', $clientRange)) {
+            http_response_code(416);
+            echo 'Rango de descarga no válido';
+            return;
+        }
+        $ch = curl_init($url);
+        $curlOptions = [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME => 300,
+            CURLOPT_BUFFERSIZE => 262144,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$status, &$contentLength, &$contentType): int {
+                $length = strlen($line);
+                if (preg_match('/^HTTP\\/[\\d.]+\\s+(\\d+)/i', $line, $match)) {
+                    $status = (int) $match[1];
+                    $contentLength = null;
+                    $contentRange = null;
+                    $contentType = 'video/mp4';
+                } elseif (stripos($line, 'Content-Length:') === 0) {
+                    $contentLength = trim(substr($line, strlen('Content-Length:')));
+                } elseif (stripos($line, 'Content-Range:') === 0) {
+                    $contentRange = trim(substr($line, strlen('Content-Range:')));
+                } elseif (stripos($line, 'Content-Type:') === 0) {
+                    $contentType = trim(substr($line, strlen('Content-Type:')));
+                }
+                return $length;
+            },
+            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$status, &$contentLength, &$contentRange, &$contentType, &$started, &$transferred, $filename, $clientRange, $totalSize): int {
+                if ($status < 200 || $status >= 300 || ($clientRange !== '' && $status !== 206)) return 0;
+                if (!$started) {
+                    if ($status === 206 && $contentRange === null && $totalSize !== null) {
+                        $rangeValue = substr($clientRange, 6);
+                        if (preg_match('/^(\d*)-(\d*)$/', $rangeValue, $rangeMatch)) {
+                            if ($rangeMatch[1] === '') {
+                                $suffixLength = (int) $rangeMatch[2];
+                                $rangeStart = max(0, $totalSize - $suffixLength);
+                                $rangeEnd = $totalSize - 1;
+                            } else {
+                                $rangeStart = (int) $rangeMatch[1];
+                                $rangeEnd = $rangeMatch[2] === '' ? $totalSize - 1 : min((int) $rangeMatch[2], $totalSize - 1);
+                            }
+                            if ($rangeStart <= $rangeEnd) $contentRange = "bytes {$rangeStart}-{$rangeEnd}/{$totalSize}";
+                        }
+                    }
+                    if ($status === 206 && $contentRange === null) return 0;
+                    if ($status === 206) http_response_code(206);
+                    header('Content-Type: ' . $contentType);
+                    header('Content-Disposition: attachment; filename="' . $filename . '"');
+                    if ($contentLength !== null && ctype_digit($contentLength)) header('Content-Length: ' . $contentLength);
+                    if ($contentRange !== null) header('Content-Range: ' . $contentRange);
+                    header('Accept-Ranges: bytes');
+                    header('Cache-Control: no-store');
+                    header('X-Content-Type-Options: nosniff');
+                    $started = true;
+                }
+                if (connection_aborted()) return 0;
+                $written = strlen($chunk);
+                echo $chunk;
+                $transferred += $written;
+                flush();
+                return $written;
+            },
+        ];
+        if ($clientRange !== '') $curlOptions[CURLOPT_RANGE] = substr($clientRange, 6);
+        curl_setopt_array($ch, $curlOptions);
+
+        $ok = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (!$started) {
+            http_response_code(502);
+            echo $clientRange !== '' && $httpCode === 200
+                ? 'El servidor de video no admite reanudar esta descarga.'
+                : 'No se pudo iniciar la descarga del video (HTTP ' . $httpCode . ').';
+        }
+        if ($ok === false && !connection_aborted()) {
+            error_log(sprintf('[download-full-video] Transferencia interrumpida. HTTP %d, bytes enviados %d, tamaño esperado %s, error: %s', $httpCode, $transferred, $contentLength ?? 'desconocido', $curlError));
+        } elseif ($contentLength !== null && ctype_digit($contentLength) && $transferred !== (int) $contentLength) {
+            error_log(sprintf('[download-full-video] Tamaño incompleto. Bytes enviados %d de %s.', $transferred, $contentLength));
+        }
     }
 
     /** Comprueba en el VPS si el video original ya está accesible. */

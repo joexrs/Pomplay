@@ -1,12 +1,13 @@
 <?php
+require_once __DIR__ . '/../../bootstrap/env.php';
 header('Content-Type: application/json');
 include __DIR__ . '/../../conexion.php';
 
 $body = json_decode(file_get_contents('php://input'), true);
 
 // Verificar key
-$API_KEY = '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';
-if (($body['key'] ?? '') !== $API_KEY) {
+$apiKey = (string) env('VPS_KEY', '');
+if ($apiKey === '' || !hash_equals($apiKey, (string) ($body['key'] ?? ''))) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'No autorizado']);
     exit;

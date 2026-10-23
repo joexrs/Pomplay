@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../bootstrap/env.php';
 
 // Configuración de sesión extendida para evitar desconexiones en grabaciones largas (1 a 2+ horas)
 if (session_status() === PHP_SESSION_NONE) {
@@ -47,8 +48,13 @@ function jsonResponse(array $payload): void
 }
 
 // ── Configuración ─────────────────────────────────────────────────────────────
-define('VPS_API', 'https://cctv.pomplay.com.pe/cameras.php');
-define('VPS_KEY', '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6');
+define('VPS_API', (string) env('VPS_CAMERAS_URL', 'https://cctv.pomplay.com.pe/cameras.php'));
+define('VPS_KEY', (string) env('VPS_KEY', ''));
+if (VPS_KEY === '') {
+    http_response_code(503);
+    echo json_encode(['ok' => false, 'error' => 'Servicio no configurado']);
+    exit;
+}
 
 $action = $_GET['action'] ?? '';
 $codigo = trim($_GET['codigo'] ?? '');
@@ -158,14 +164,16 @@ function callVPSParallel(string $action, string $codigo, array $camaras, ?int $i
              . '&codigo='   . urlencode($codigo)
              . '&stream='   . urlencode($cam['stream'])
              . '&cam='      . (int)$cam['posicion']
-             . '&id_local=' . urlencode((string)($idLocal ?? ''))
-             . '&key='      . VPS_KEY;
+             . '&id_local=' . urlencode((string)($idLocal ?? ''));
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER     => ['X-VPS-Key: ' . VPS_KEY],
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
         curl_multi_add_handle($mh, $ch);
         $handles[(int)$cam['posicion']] = $ch;
@@ -676,11 +684,16 @@ switch ($action) {
              . '&codigo='   . urlencode($codigo)
              . '&stream='   . urlencode($cam['stream'])
              . '&cam=1'
-             . '&id_local=' . urlencode((string)($idLocal ?? ''))
-             . '&key='      . VPS_KEY;
+             . '&id_local=' . urlencode((string)($idLocal ?? ''));
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_HTTPHEADER => ['X-VPS-Key: ' . VPS_KEY],
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
         $resp = curl_exec($ch);
         curl_close($ch);
 

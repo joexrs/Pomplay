@@ -1,11 +1,12 @@
 <?php
+require_once __DIR__ . '/../../bootstrap/env.php';
 
 
 // ── Configuración ──────────────────────────────────────────────────────────
-$API_KEY    = '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';
+$API_KEY    = (string) env('VPS_KEY', '');
 $FFMPEG     = '/usr/bin/ffmpeg'; // Ajustar si es necesario
 $CLIPS_DIR  = __DIR__ . '/clips';        // Carpeta pública donde se guardan los MP4
-$CLIPS_URL  = 'https://cctv.pomplay.com.pe/clips'; // URL pública de la carpeta
+$CLIPS_URL  = rtrim((string) env('CCTV_CLIPS_BASE_URL', 'https://cctv.pomplay.com.pe/clips'), '/');
 $MAX_DUR    = 7200;  // Duración máxima del clip: 2 horas (segundos)
 $KEEP_HOURS = 24;    // Horas que se conservan los clips antes de borrar
 
@@ -25,7 +26,7 @@ if (!empty($rawBody) && str_starts_with(trim($rawBody), '{')) {
     if (empty($key)) $key = $jsonInput['key'] ?? '';
 }
 
-if ($key !== $API_KEY) {
+if ($API_KEY === '' || !hash_equals($API_KEY, (string) $key)) {
     http_response_code(401);
     header('Content-Type: application/json');
     echo json_encode(['ok' => false, 'error' => 'No autorizado']);

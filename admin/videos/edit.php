@@ -35,8 +35,8 @@ $canchasStmt = $pdo->query("CALL GetAllCanchas()");
 $canchas = $canchasStmt->fetchAll(PDO::FETCH_ASSOC);
 $canchasStmt->closeCursor();
 
-$VPS_STORAGE_URL = rtrim(getenv('VPS_STORAGE_URL') ?: 'https://cctv.pomplay.com.pe/storage.php', '/');
-$VPS_KEY = getenv('VPS_KEY') ?: '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';
+$_SESSION['storage_proxy_csrf'] ??= bin2hex(random_bytes(32));
+$STORAGE_PROXY_URL = $baseUrl . '/admin/videos/procesos/storage_proxy.php';
 ?>
 
 <div class="adm-form-wrap">
@@ -221,8 +221,8 @@ $VPS_KEY = getenv('VPS_KEY') ?: '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991
 
 <script>
 // ── Configuración del VPS ────────────────────────────────────────────────────
-const VPS_STORAGE_URL = '<?= $VPS_STORAGE_URL ?>';
-const VPS_KEY         = '<?= $VPS_KEY ?>';
+const STORAGE_PROXY_URL = <?= json_encode($STORAGE_PROXY_URL, JSON_UNESCAPED_SLASHES) ?>;
+const STORAGE_CSRF_TOKEN = <?= json_encode($_SESSION['storage_proxy_csrf']) ?>;
 const CHUNK_SIZE      = 1 * 1024 * 1024; // 1 MB por chunk
 
 // ── Referencias DOM ──────────────────────────────────────────────────────────
@@ -359,7 +359,7 @@ async function iniciarSubida() {
 async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRetries = 3) {
   for (let intento = 1; intento <= maxRetries; intento++) {
     try {
-      const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: formData });
+      const response = await fetch(STORAGE_PROXY_URL, { method: 'POST', body: formData, headers: { 'X-CSRF-Token': STORAGE_CSRF_TOKEN } });
       const rawText = await response.text();
       let resp;
       try {
@@ -385,7 +385,7 @@ async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRe
 async function finalizeConReintentos(finalFormData, maxRetries = 2) {
   for (let intento = 1; intento <= maxRetries; intento++) {
     try {
-      const response = await fetch(VPS_STORAGE_URL, { method: 'POST', body: finalFormData });
+      const response = await fetch(STORAGE_PROXY_URL, { method: 'POST', body: finalFormData, headers: { 'X-CSRF-Token': STORAGE_CSRF_TOKEN } });
       const rawText = await response.text();
       let finalResp;
       try {
@@ -453,7 +453,6 @@ async function iniciarSubida() {
 
     const formData = new FormData();
     formData.append('action',       'upload_chunk');
-    formData.append('key',          VPS_KEY);
     formData.append('upload_id',    uploadId);
     formData.append('chunk_index',  i);
     formData.append('total_chunks', totalChunks);
@@ -489,7 +488,6 @@ async function iniciarSubida() {
 
   const finalFormData = new FormData();
   finalFormData.append('action',        'finalize_upload');
-  finalFormData.append('key',           VPS_KEY);
   finalFormData.append('upload_id',     uploadId);
   finalFormData.append('id_local',      idLocal);
   finalFormData.append('codigo_cancha', codigoCancha);

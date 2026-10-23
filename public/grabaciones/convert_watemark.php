@@ -1,13 +1,14 @@
 <?php
+require_once __DIR__ . '/../../bootstrap/env.php';
 /**
  * convert.php — VPS cctv.pomplay.com.pe
  */
 
 // ── Configuración ──────────────────────────────────────────────────────────
-$API_KEY    = '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6';
+$API_KEY    = (string) env('VPS_KEY', '');
 $FFMPEG     = '/usr/bin/ffmpeg';
 $CLIPS_DIR  = __DIR__ . '/clips';
-$CLIPS_URL  = 'https://cctv.pomplay.com.pe/clips';
+$CLIPS_URL  = rtrim((string) env('CCTV_CLIPS_BASE_URL', 'https://cctv.pomplay.com.pe/clips'), '/');
 $MAX_DUR    = 7200;
 $KEEP_HOURS = 1;
 
@@ -28,7 +29,7 @@ if (!empty($rawBody) && str_starts_with(trim($rawBody), '{')) {
     $jsonInput = json_decode($rawBody, true) ?? [];
     if (empty($key)) $key = $jsonInput['key'] ?? '';
 }
-if ($key !== $API_KEY) {
+if ($API_KEY === '' || !hash_equals($API_KEY, (string) $key)) {
     http_response_code(401);
     header('Content-Type: application/json');
     echo json_encode(['ok' => false, 'error' => 'No autorizado']);

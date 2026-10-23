@@ -18,7 +18,7 @@ class VpsStorageService
     public function __construct()
     {
         $this->apiUrl = rtrim(env('VPS_STORAGE_URL', 'https://cctv.pomplay.com.pe/storage.php'), '/');
-        $this->apiKey = env('VPS_KEY', '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6');
+        $this->apiKey = (string) env('VPS_KEY', '');
     }
 
     // ─────────────────────────────────────────────────────────────────────────

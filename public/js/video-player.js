@@ -208,7 +208,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Play/Pause ────────────────────────────────────────────
   function togglePlayPause() {
     if (videoPlayer.paused || videoPlayer.ended) {
-      videoPlayer.play().catch(e => { warn('[play]', e); syncPlayIcon(); });
+      videoPlayer.play().catch(e => {
+        // Al iniciar una descarga pausamos el reproductor intencionalmente;
+        // el navegador rechaza la promesa de play() pendiente con AbortError.
+        if (e.name !== 'AbortError') warn('[play]', e);
+        syncPlayIcon();
+      });
     } else {
       videoPlayer.pause();
     }
@@ -842,10 +847,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // La URL del reproductor puede apuntar al proxy de streaming local. Extraer
     // la URL original evita encadenar un proxy de descarga a otro proxy.
     let videoSrc = window.POMPLAY_VIDEO?.download_url || '';
+    const playerSource = videoPlayer.currentSrc
+      || videoPlayer.querySelector('source')?.src
+      || videoPlayer.src
+      || '';
+    // video_url_original puede estar guardado como ruta relativa; la fuente
+    // reproducible ya contiene la URL pública resuelta dentro del proxy.
     if (!/^https?:\/\//i.test(videoSrc)) {
       try {
-        const playerUrl = new URL(videoPlayer.currentSrc || videoPlayer.src, window.location.href);
-        videoSrc = playerUrl.searchParams.get('url') || videoSrc;
+        const playerUrl = new URL(playerSource, window.location.href);
+        const proxiedUrl = playerUrl.searchParams.get('url');
+        if (proxiedUrl) videoSrc = proxiedUrl;
+        else if (!videoSrc) videoSrc = playerUrl.href;
       } catch (_) { }
     }
     if (!videoSrc) { showToast('No hay video disponible'); return; }

@@ -34,9 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // ── Configuración ──────────────────────────────────────────────────────────────
-define('VPS_KEY',         '5a51e68bb363b9f212f631eccca1ac1b7a15c6f3c200991f6bcebfcc15524fc6');
+$vpsConfig = is_readable('/opt/cctv/.env')
+    ? @parse_ini_file('/opt/cctv/.env', false, INI_SCANNER_RAW)
+    : [];
+$vpsConfig = is_array($vpsConfig) ? $vpsConfig : [];
+define('VPS_KEY',         (string) ($vpsConfig['VPS_KEY'] ?? getenv('VPS_KEY') ?: ''));
 define('RECORDINGS_BASE', '/opt/cctv/recordings');
-define('CCTV_PUBLIC_URL', 'https://cctv.pomplay.com.pe/videos');
+define('CCTV_PUBLIC_URL', rtrim((string) ($vpsConfig['CCTV_BASE_URL'] ?? getenv('CCTV_BASE_URL') ?: 'https://cctv.pomplay.com.pe/videos'), '/'));
 define('CHUNKS_TMP_DIR',  '/tmp/pomplay_chunks'); // directorio temporal para chunks
 
 // ── Helper: respuesta JSON ─────────────────────────────────────────────────────
@@ -54,7 +58,7 @@ $receivedKey = $_SERVER['HTTP_X_VPS_KEY']
     ?? $_GET['key']
     ?? '';
 
-if (!hash_equals(VPS_KEY, $receivedKey)) {
+if (VPS_KEY === '' || !hash_equals(VPS_KEY, (string) $receivedKey)) {
     jsonResponse(['ok' => false, 'error' => 'No autorizado'], 401);
 }
 
@@ -145,15 +149,12 @@ switch ($action) {
             jsonResponse(['ok' => false, 'error' => 'No se pudo guardar el chunk ' . $chunk_index]);
         }
 
-        // Contar cuántos chunks se han recibido hasta ahora
-        $receivedChunks = count(glob($chunkDir . '/chunk_*'));
-
+        // No escanear el directorio en cada petición: en subidas grandes,
+        // hacerlo repetidamente agrega trabajo proporcional al número de chunks.
         jsonResponse([
-            'ok'             => true,
-            'chunk_index'    => $chunk_index,
-            'total_chunks'   => $total_chunks,
-            'received_chunks'=> $receivedChunks,
-            'complete'       => ($receivedChunks >= $total_chunks),
+            'ok'           => true,
+            'chunk_index'  => $chunk_index,
+            'total_chunks' => $total_chunks,
         ]);
         break;
 

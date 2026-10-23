@@ -523,7 +523,7 @@ window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
 </script>
 <!-- Detectar Android para aplicar estilos sólo en ese OS -->
 <script src="<?= $baseUrl ?>/public/js/platform-detect.js?v=2.0"></script>
-<script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.1"></script>
+<script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.3"></script>
 <?php if (!empty($requiresPin) && empty($hasAccess)): ?>
 <script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.2"></script>
 <?php endif; ?>
