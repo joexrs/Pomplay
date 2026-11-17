@@ -166,6 +166,7 @@ $stmt->closeCursor();
 
   <div class="adm-form-card">
     <form action="procesos/procesar_cancha.php" method="POST" enctype="multipart/form-data" autocomplete="off" id="formCancha">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
       <div class="adm-field">
         <label class="adm-label" for="id_local">Local</label>
         <select id="id_local" name="id_local" class="adm-select" required>

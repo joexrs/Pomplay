@@ -22,6 +22,11 @@ AddDefaultCharset utf-8
     Deny from all
 </FilesMatch>
 
+<FilesMatch "\.sql$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
 # Bloquear acceso directo a vendor (pero PHP puede usarlo)
 <IfModule mod_rewrite.c>
     RewriteEngine On

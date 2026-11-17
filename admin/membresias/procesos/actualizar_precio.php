@@ -1,12 +1,25 @@
 <?php
-// NO iniciar sesión aquí, ya está iniciada por el sistema
-require __DIR__ . '/../../../conexion.php';
+session_start();
+require_once __DIR__ . '/../../../bootstrap/autoload.php';
+
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::hasAnyRole(['ADMIN', 'SUPER_ADMIN'])) {
+    http_response_code(403);
+    exit('Acceso denegado');
+}
 
 // Verificar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../index.php?error=Método no permitido');
-    exit;
+    header('Allow: POST');
+    http_response_code(405);
+    exit('Método no permitido');
 }
+
+if (!\App\Core\Csrf::validate($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    exit('Solicitud no válida. Recarga la página e inténtalo nuevamente.');
+}
+
+require __DIR__ . '/../../../conexion.php';
 
 $idPrecio = $_POST['id_precio'] ?? null;
 $precio = $_POST['precio'] ?? null;

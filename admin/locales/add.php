@@ -38,6 +38,7 @@ $stmtPropietarios->closeCursor();
     <?php endif; ?>
 
     <form method="POST" action="procesos/procesar_local.php" class="adm-form" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
       <!-- Card: Información del Local -->
       <div class="adm-form-card" style="margin-bottom:24px;">
         <div class="adm-form-heading" style="margin-top:0;">
@@ -65,22 +66,6 @@ $stmtPropietarios->closeCursor();
           </small>
         </div>
 
-        <div class="adm-field" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.06);">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
-            <div>
-              <label class="adm-label" style="margin-bottom:4px; display:block;">
-                <i class="fas fa-lock" style="color:var(--color-brand); margin-right:6px;"></i>Videos Privados
-              </label>
-              <small style="color:var(--color-text-muted); font-size:0.8rem;">
-                Los videos de este local requerirán un código PIN para ser vistos
-              </small>
-            </div>
-            <label class="switch-toggle" for="es_privado" style="flex-shrink:0;">
-              <input type="checkbox" id="es_privado" name="es_privado" value="1">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-        </div>
       </div>
 
       <!-- Card: Nuevo Propietario -->
@@ -124,8 +109,11 @@ $stmtPropietarios->closeCursor();
 
         <div class="adm-field">
           <label class="adm-label" for="nuevo_propietario_password">Contraseña</label>
-          <input type="password" id="nuevo_propietario_password" name="nuevo_propietario_password" class="adm-input" 
-                 placeholder="Mínimo 6 caracteres" minlength="6">
+          <input type="password" id="nuevo_propietario_password" name="nuevo_propietario_password" class="adm-input"
+                 placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo"
+                 minlength="8" maxlength="72"
+                 pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,72}"
+                 title="Usa al menos 8 caracteres e incluye una mayúscula, una minúscula, un número y un símbolo.">
         </div>
 
         <div class="adm-field">
@@ -236,9 +224,11 @@ document.querySelector('form').addEventListener('submit', function(e) {
   }
   
   // Validar contraseña
-  if (nuevoPassword && nuevoPassword.length < 6) {
+  const passwordBytes = new TextEncoder().encode(nuevoPassword).length;
+  const strongPassword = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,72}$/;
+  if (nuevoPassword && (!strongPassword.test(nuevoPassword) || passwordBytes > 72)) {
     e.preventDefault();
-    alert('La contraseña debe tener al menos 6 caracteres');
+    alert('La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y símbolo (máximo 72 bytes)');
     return false;
   }
   

@@ -125,6 +125,7 @@ try {
     </div>
 
     <form method="POST" action="procesos/actualizar_precio.php" id="formEditarPrecio">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
       <input type="hidden" name="id_precio" id="idPrecio">
       
       <div class="form-group-membership">

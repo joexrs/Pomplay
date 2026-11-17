@@ -84,7 +84,7 @@ if (is_readable($contactConfigPath)) {
     <link rel="stylesheet" href="<?= $baseUrl ?>/public/fontawesome/css/all.min.css?v=1.0" />
 
     <!-- Admin Modern v2 (Light Theme) -->
-    <link rel="stylesheet" type="text/css" href="<?= $baseUrl ?>/public/css/admin-modern-v2.css?v=2.0" />
+    <link rel="stylesheet" type="text/css" href="<?= $baseUrl ?>/public/css/admin-modern-v2.css?v=2.4" />
 
     <!-- Responsive Consolidated - Sidebar Mobile (DEBE IR AL FINAL) -->
     <link rel="stylesheet" type="text/css" href="<?= $baseUrl ?>/public/css/responsive-consolidated.css?v=1.6" />

@@ -214,6 +214,7 @@ $stmt_loc->closeCursor();
 
   <div class="adm-form-card">
     <form action="procesos/procesar_editar.php" method="POST" enctype="multipart/form-data" autocomplete="off" id="formEditCancha">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
       <input type="hidden" name="id_cancha" value="<?= htmlspecialchars($cancha['id_cancha']) ?>" />
 
       <div class="adm-field">

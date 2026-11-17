@@ -71,6 +71,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const iosPosterOverlay = document.getElementById('iosPosterOverlay');
   const iosPosterPlayBtn = document.getElementById('iosPosterPlayBtn');
   const posterPlaceholder = document.getElementById('posterPlaceholder');
+  const hasPlayableSource = () => {
+    const playerSource = videoPlayer.getAttribute('src');
+    const childSource = videoPlayer.querySelector('source')?.getAttribute('src');
+    return Boolean((playerSource && playerSource.trim()) || (childSource && childSource.trim()));
+  };
+  const isPasswordPending = () => Boolean(document.getElementById('pinOverlay'));
 
   function hideIOSPoster() {
     if (!iosPosterOverlay) return;
@@ -84,7 +90,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (iosPosterOverlay) {
     // Siempre re-mostrar el overlay cuando empieza a cargar un nuevo src
-    videoPlayer.addEventListener('loadstart', showIOSPoster);
+    videoPlayer.addEventListener('loadstart', () => {
+      showIOSPoster();
+      if (iosPosterPlayBtn) iosPosterPlayBtn.style.display = 'none';
+    });
 
     // Ocultar cuando el video realmente tiene datos o está reproduciendo
     ['canplay', 'canplaythrough', 'loadeddata', 'playing'].forEach(ev =>
@@ -93,6 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Ante error, quitar el overlay para que el usuario vea el mensaje
     videoPlayer.addEventListener('error', () => {
+      if (!hasPlayableSource()) return;
       hideIOSPoster();
     });
 
@@ -112,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       let autoplaySucceeded = false;
       const tryAutoplay = () => {
-        if (autoplaySucceeded) return;
+        if (autoplaySucceeded || isPasswordPending() || !hasPlayableSource()) return;
         videoPlayer.muted = true;
         videoPlayer.play().then(() => {
           autoplaySucceeded = true;
@@ -127,6 +137,13 @@ document.addEventListener('DOMContentLoaded', function () {
           // Todavía no se pudo — se reintentará en el próximo evento
           // (loadedmetadata → loadeddata → canplay). Sólo si TODOS
           // fallan se muestra el botón play como último recurso.
+          if (
+            videoPlayer.readyState >= 2 &&
+            iosPosterPlayBtn &&
+            !iosPosterOverlay.classList.contains('hidden')
+          ) {
+            iosPosterPlayBtn.style.display = '';
+          }
         });
       };
 
@@ -141,13 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
         videoPlayer.addEventListener(ev, tryAutoplay)
       );
 
-      // Fallback de seguridad: si tras 5s el autoplay no arrancó,
-      // recién ahí mostramos el botón play para que el usuario lo inicie.
-      setTimeout(() => {
-        if (!autoplaySucceeded && iosPosterOverlay && !iosPosterOverlay.classList.contains('hidden')) {
-          if (iosPosterPlayBtn) iosPosterPlayBtn.style.display = '';
-        }
-      }, 5000);
+      document.addEventListener('pomplay:video-authorized', tryAutoplay);
     }
     const startVideoFromPoster = (e) => {
       e.preventDefault();
@@ -517,10 +528,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (clipsBtn) clipsBtn.disabled = true;
     showProcModal('processing', 'Procesando video…');
 
-    const videoUrl = videoPlayer.currentSrc || videoPlayer.src;
     const videoMeta = window.POMPLAY_VIDEO || {};
     const clipData = {
-      videoUrl,
       startTime: clipStart,
       endTime: clipEnd,
       duration,
@@ -528,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function () {
       zoom: currentZoom,
       panX,
       panY,
-      codigoVideo: videoMeta.codigo || null,
+      codigoVideo: currentVideoCode || videoMeta.codigo || null,
       idLocal: videoMeta.id_local || null,
       codigoCancha: videoMeta.codigo_cancha || null,
     };
@@ -683,6 +692,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Selector de cámaras ───────────────────────────────────
   let currentCameraId = null;
+  let currentVideoCode = window.POMPLAY_VIDEO?.codigo || '';
   const availableCameras = window.VIDEO_CAMERAS || [];
 
   function initCameraSelector() {
@@ -695,6 +705,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const cams = availableCameras.map((cam, idx) => ({
       id: String(cam.id_camara ?? cam.id ?? cam.camera_id ?? idx),
       url: cam.video_url ?? cam.url ?? cam.videoUrl ?? '',
+      code: String(cam.codigo_video ?? ''),
+      protected: Boolean(Number(cam.requiere_contrasena ?? 0)),
       nombre: cam.nombre ?? cam.name ?? cam.label ?? ('Cam ' + (idx + 1)),
     }));
 
@@ -713,7 +725,9 @@ document.addEventListener('DOMContentLoaded', function () {
       ${cams.map((cam, idx) => `
         <button class="cam-btn ${idx === 0 ? 'active' : ''}"
                 data-camera-id="${cam.id}"
-                data-video-url="${cam.url}">
+                data-video-url="${cam.url}"
+                data-video-code="${cam.code}"
+                data-video-protected="${cam.protected ? '1' : '0'}">
           ${cam.nombre}
         </button>`).join('')}
     </div>`;
@@ -721,20 +735,50 @@ document.addEventListener('DOMContentLoaded', function () {
     wrap.insertAdjacentHTML('afterbegin', html);
 
     document.querySelectorAll('#cameraSelector .cam-btn').forEach(btn => {
-      btn.addEventListener('click', function () {
-        switchCamera(this.dataset.cameraId, this.dataset.videoUrl);
-        document.querySelectorAll('#cameraSelector .cam-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
+      btn.addEventListener('click', async function () {
+        const changed = await switchCamera(
+          this.dataset.cameraId,
+          this.dataset.videoUrl,
+          this.dataset.videoCode,
+          this.dataset.videoProtected === '1'
+        );
+        if (changed) {
+          document.querySelectorAll('#cameraSelector .cam-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+        }
       });
     });
   }
 
-  function switchCamera(cameraId, videoUrl) {
+  async function switchCamera(cameraId, videoUrl, videoCode, protectedVideo) {
     // Los valores de dataset siempre son strings — comparar como strings
     // FIX: también se verifica que currentCameraId no sea null (estado inicial)
-    if (!videoPlayer || (currentCameraId !== null && currentCameraId === String(cameraId))) return;
-    if (isClipping) { showToast('⚠ Detén el clip antes de cambiar cámara'); return; }
-    if (!videoUrl) { showToast('⚠ Esta cámara no tiene URL de video'); return; }
+    if (!videoPlayer || (currentCameraId !== null && currentCameraId === String(cameraId))) return false;
+    if (isClipping) { showToast('⚠ Detén el clip antes de cambiar cámara'); return false; }
+    if (!videoUrl || !videoCode) { showToast('⚠ Esta cámara no tiene URL de video'); return false; }
+
+    if (protectedVideo) {
+      const password = window.prompt('Este video está protegido. Ingresa su contraseña:');
+      if (password === null) return false;
+      try {
+        const response = await fetch(
+          `${window.POMPLAY_BASE || ''}/api/videos/${encodeURIComponent(videoCode)}/verificar-contrasena`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+          }
+        );
+        const result = await response.json();
+        if (!response.ok || result.valid !== true) {
+          showToast(result.message || 'Contraseña incorrecta');
+          return false;
+        }
+      } catch (_) {
+        showToast('No se pudo verificar la contraseña');
+        return false;
+      }
+    }
 
     const wasPlaying = !videoPlayer.paused;
     const t = videoPlayer.currentTime;
@@ -744,6 +788,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (iosPosterOverlay) showIOSPoster();
 
     currentCameraId = String(cameraId);
+    currentVideoCode = videoCode;
 
     videoPlayer.src = videoUrl;
     videoPlayer.load();
@@ -763,6 +808,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     showToast('Cámara cambiada', 'success');
+    return true;
   }
 
   // Inicializar una sola vez — el script ya corre después de DOMContentLoaded
@@ -846,21 +892,11 @@ document.addEventListener('DOMContentLoaded', function () {
   downloadFullBtn?.addEventListener('click', async function () {
     // La URL del reproductor puede apuntar al proxy de streaming local. Extraer
     // la URL original evita encadenar un proxy de descarga a otro proxy.
-    let videoSrc = window.POMPLAY_VIDEO?.download_url || '';
-    const playerSource = videoPlayer.currentSrc
+    const videoSrc = videoPlayer.currentSrc
       || videoPlayer.querySelector('source')?.src
       || videoPlayer.src
+      || window.POMPLAY_VIDEO?.download_url
       || '';
-    // video_url_original puede estar guardado como ruta relativa; la fuente
-    // reproducible ya contiene la URL pública resuelta dentro del proxy.
-    if (!/^https?:\/\//i.test(videoSrc)) {
-      try {
-        const playerUrl = new URL(playerSource, window.location.href);
-        const proxiedUrl = playerUrl.searchParams.get('url');
-        if (proxiedUrl) videoSrc = proxiedUrl;
-        else if (!videoSrc) videoSrc = playerUrl.href;
-      } catch (_) { }
-    }
     if (!videoSrc) { showToast('No hay video disponible'); return; }
 
     videoPlayer.pause();
@@ -874,7 +910,7 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
       // Construir nombre de archivo descriptivo
       const videoMeta = window.POMPLAY_VIDEO || {};
-      const codigoVideo   = videoMeta.codigo        || '';
+      const codigoVideo   = currentVideoCode || videoMeta.codigo || '';
       const codigoCancha  = videoMeta.codigo_cancha || '';
       const timestamp     = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const rawName       = [
@@ -888,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const filename = rawName.replace(/[^a-zA-Z0-9_\-.]/g, '_');
 
       updateProcProgress(25);
-      const checkUrl = (window.POMPLAY_BASE || '') + '/api/check-full-video?url=' + encodeURIComponent(videoSrc);
+      const checkUrl = (window.POMPLAY_BASE || '') + '/api/check-full-video?codigo_video=' + encodeURIComponent(codigoVideo);
       const deadline = Date.now() + 120000;
       let ready = false;
       while (Date.now() < deadline) {
@@ -908,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Ruta propia para el video completo; no interviene la API de generación de clips.
       const proxyUrl = (window.POMPLAY_BASE || '')
-        + '/api/download-full-video?url=' + encodeURIComponent(videoSrc)
+        + '/api/download-full-video?codigo_video=' + encodeURIComponent(codigoVideo)
         + '&filename=' + encodeURIComponent(filename);
 
       // Disparar descarga con <a download>

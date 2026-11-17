@@ -1,5 +1,12 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../../bootstrap/autoload.php';
+
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::isAdmin()) {
+    http_response_code(403);
+    exit('Acceso denegado');
+}
+
 include '../../../conexion.php';
 
 // Calcular baseUrl dinámicamente
@@ -27,10 +34,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $video_url = trim($_POST['video_url'] ?? '');
     $duracion = trim($_POST['duracion'] ?? '');
     $observacion = trim($_POST['observacion'] ?? '');
+    $video_password = (string) ($_POST['video_password'] ?? '');
+    $video_password_enabled = ($_POST['video_password_enabled'] ?? '') === '1';
+    $remove_video_password = !$video_password_enabled;
+    $csrfToken = (string) ($_POST['video_password_csrf'] ?? '');
+    if (
+        $csrfToken === ''
+        || empty($_SESSION['video_password_csrf'])
+        || !hash_equals((string) $_SESSION['video_password_csrf'], $csrfToken)
+    ) {
+        $errors[] = 'Token de seguridad inválido. Recarga el formulario e inténtalo nuevamente.';
+    }
+
+    if ($video_password_enabled && $video_password !== ''
+        && !\App\Core\PasswordPolicy::meetsRequirements($video_password)) {
+        $errors[] = 'La contraseña del video debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y símbolo (máximo 72 bytes)';
+    }
 
     // Validar código de video
     if (empty($codigo_video)) {
         $errors[] = 'El código del video es obligatorio';
+    }
+    $currentPasswordHash = null;
+    if ($codigo_video !== '') {
+        $currentPasswordStmt = $pdo->prepare('SELECT password_hash FROM video WHERE codigo_video = :codigo_video');
+        $currentPasswordStmt->execute([':codigo_video' => $codigo_video]);
+        $currentPasswordHash = $currentPasswordStmt->fetchColumn();
+        $currentPasswordStmt->closeCursor();
+        if ($video_password_enabled && $video_password === '' && empty($currentPasswordHash)) {
+            $errors[] = 'Ingresa una contraseña para proteger el video';
+        }
     }
 
     // Validar descripción
@@ -87,18 +120,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // ===== PROCESAMIENTO =====
     try {
-        $stmt = $pdo->prepare("
-            UPDATE video 
-            SET fecha_partido = :fecha_partido,
-                hora_partido = :hora_partido,
-                descripcion = :descripcion,
-                codigo_cancha = :codigo_cancha,
-                duracion = :duracion,
-                observacion = :observacion
-            WHERE codigo_video = :codigo_video
-        ");
-        
-        $result = $stmt->execute([
+        $passwordUpdate = '';
+        $params = [
             ':codigo_video'  => $codigo_video,
             ':fecha_partido' => $fecha_partido,
             ':hora_partido'  => $hora_partido,
@@ -106,7 +129,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             ':codigo_cancha' => $codigo_cancha,
             ':duracion'      => $duracion,
             ':observacion'   => $observacion,
-        ]);
+        ];
+
+        if ($remove_video_password || $video_password !== '') {
+            $passwordUpdate = ', password_hash = :password_hash';
+            $params[':password_hash'] = $remove_video_password
+                ? null
+                : password_hash($video_password, PASSWORD_DEFAULT);
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE video
+            SET fecha_partido = :fecha_partido,
+                hora_partido = :hora_partido,
+                descripcion = :descripcion,
+                codigo_cancha = :codigo_cancha,
+                duracion = :duracion,
+                observacion = :observacion
+                $passwordUpdate
+            WHERE codigo_video = :codigo_video
+        ");
+
+        $result = $stmt->execute($params);
         
         if (!$result) {
             $_SESSION['error'] = 'Error al actualizar el video';

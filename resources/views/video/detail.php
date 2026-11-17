@@ -30,44 +30,40 @@
 
 <link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-page.css?v=1.0" />
 <link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-player.css?v=16.1" />
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=16.1" />
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-detail-responsive.css?v=16.2" />
 
 <?php if ($video): ?>
 <?php $playableVideoUrl = $videoUrl ?? ($video['video_url'] ?? ''); ?>
-<?php $pinLongitud = 6; // PIN fijo de 6 dígitos ?>
-
-<?php if (!empty($requiresPin) && empty($hasAccess)): ?>
-<!-- ══ OVERLAY DE PIN — bloquea el video hasta verificar ══ -->
-<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-pin.css?v=1.0" />
+<?php if (!empty($requiresPassword) && empty($hasAccess)): ?>
+<link rel="stylesheet" href="<?= $baseUrl ?>/public/css/video-password.css?v=1.2" />
 
 <div class="pin-overlay" id="pinOverlay"
-     data-video-code="<?= htmlspecialchars($codigoVideo) ?>"
-     data-pin-length="<?= $pinLongitud ?>">
+     data-video-code="<?= htmlspecialchars($codigoVideo, ENT_QUOTES, 'UTF-8') ?>">
   <div class="pin-card">
     <div class="pin-icon-wrap">
       <i class="fas fa-lock"></i>
     </div>
-    <h2 class="pin-title">Video Privado</h2>
+    <h2 class="pin-title">Video protegido</h2>
     <p class="pin-subtitle">
-      Este video requiere un código de acceso.<br>
-      Solicítalo al propietario del local.
+      Ingresa la contraseña para reproducir este video.
     </p>
 
-    <div class="pin-digits-wrap" id="pinDigitsWrap">
-      <?php for ($i = 0; $i < $pinLongitud; $i++): ?>
-        <input type="number" class="pin-digit" maxlength="1" min="0" max="9"
-               inputmode="numeric" pattern="\d" autocomplete="off"
-               aria-label="Dígito <?= $i + 1 ?>">
-      <?php endfor; ?>
-    </div>
-
-    <button class="pin-submit-btn" id="pinSubmitBtn" disabled>
-      <span class="btn-text"><i class="fas fa-unlock-alt"></i> Verificar código</span>
-      <div class="spinner-sm" style="display:none;"></div>
-    </button>
+    <form id="videoPasswordForm">
+      <div class="video-password-field">
+        <input id="videoPasswordInput" type="password" class="video-password-input"
+               autocomplete="current-password" maxlength="72" required
+               aria-label="Contraseña del video">
+        <button type="button" class="video-password-toggle" id="videoPasswordToggle"
+                aria-label="Mostrar contraseña" aria-pressed="false">
+          <i class="fas fa-eye" aria-hidden="true"></i>
+        </button>
+      </div>
+      <button class="pin-submit-btn" id="pinSubmitBtn" type="submit">
+        <span class="btn-text"><i class="fas fa-unlock-alt"></i> Ver video</span>
+      </button>
+    </form>
 
     <div class="pin-message" id="pinMessage"></div>
-    <div class="pin-attempts" id="pinAttempts"></div>
 
     <a href="<?= $baseUrl ?>/index.php" class="pin-back-link">
       <i class="fas fa-arrow-left"></i> Volver al inicio
@@ -239,14 +235,14 @@
       <!-- VIDEO -->
       <?php $videoPoster = $video['thumbnail_url'] ?? $video['portada'] ?? ''; ?>
       
-      <video id="videoPlayer" class="video-player" preload="auto" autoplay muted
+      <video id="videoPlayer" class="video-player" preload="auto"
+             <?= empty($requiresPassword) || !empty($hasAccess) ? 'autoplay' : '' ?> muted
              <?= $videoPoster ? 'poster="' . htmlspecialchars($videoPoster) . '"' : '' ?>
              playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5">
-        <?php if (empty($requiresPin) || !empty($hasAccess)): ?>
+        <?php if (empty($requiresPassword) || !empty($hasAccess)): ?>
           <source src="<?= htmlspecialchars($playableVideoUrl) ?>" type="video/mp4" />
         <?php else: ?>
-          <!-- Fuente bloqueada hasta verificar PIN -->
-          <source src="" type="video/mp4" data-src="<?= htmlspecialchars($playableVideoUrl) ?>" />
+          <source type="video/mp4" data-src="<?= htmlspecialchars($playableVideoUrl) ?>" />
         <?php endif; ?>
         Tu navegador no soporta videos HTML5.
       </video>
@@ -300,7 +296,7 @@
         </div>
         <?php endif; ?>
         <button class="ios-poster-play-btn" id="iosPosterPlayBtn" aria-label="Reproducir video"
-                <?php echo !$videoPoster ? 'style="display:none"' : ''; ?>>
+                style="display:none">
           <i class="fas fa-play"></i>
         </button>
       </div>
@@ -513,7 +509,7 @@ window.POMPLAY_VIDEO = {
   codigo: <?= json_encode($codigoVideo, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
   id_local: <?= !empty($video['id_local']) ? (int) $video['id_local'] : 'null' ?>,
   codigo_cancha: <?= json_encode($video['codigo_cancha'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-  download_url: <?= json_encode($video['video_url_original'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+  download_url: <?= json_encode($videoUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
 };
 </script>
 <?php endif; ?>
@@ -523,9 +519,9 @@ window.VIDEO_CAMERAS = <?= json_encode($cameras ?? []) ?>;
 </script>
 <!-- Detectar Android para aplicar estilos sólo en ese OS -->
 <script src="<?= $baseUrl ?>/public/js/platform-detect.js?v=2.0"></script>
-<script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.3"></script>
-<?php if (!empty($requiresPin) && empty($hasAccess)): ?>
-<script src="<?= $baseUrl ?>/public/js/video-pin.js?v=1.2"></script>
+<script src="<?= $baseUrl ?>/public/js/video-player.js?v=16.4"></script>
+<?php if (!empty($requiresPassword) && empty($hasAccess)): ?>
+<script src="<?= $baseUrl ?>/public/js/video-password.js?v=1.2"></script>
 <?php endif; ?>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

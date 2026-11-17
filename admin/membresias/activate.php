@@ -1,10 +1,26 @@
-<?php include '../shared/header_admin.php'; ?>
-<?php include '../../conexion.php'; ?>
-<?php include '../config.php'; ?>
-
 <?php
+session_start();
+require_once __DIR__ . '/../../bootstrap/autoload.php';
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::hasAnyRole(['ADMIN', 'SUPER_ADMIN'])) {
+    http_response_code(403);
+    exit('Acceso denegado');
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
+    http_response_code(405);
+    exit('Método no permitido');
+}
+
+if (!\App\Core\Csrf::validate($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    exit('Solicitud no válida. Recarga la página e inténtalo nuevamente.');
+}
+
+require_once __DIR__ . '/../../conexion.php';
+
 // Verificar que se reciba el ID del local
-$localId = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$localId = isset($_POST['id']) ? (int)$_POST['id'] : null;
 
 if (!$localId) {
     $_SESSION['error'] = 'ID de local no proporcionado';
@@ -43,32 +59,11 @@ try {
     $usuario = $stmtUser->fetch(PDO::FETCH_ASSOC);
     $stmtUser->closeCursor();
 
-    // Si no tiene usuario, crear uno automáticamente
+    // La cuenta se crea al dar de alta al propietario; no generar credenciales compartidas.
     if (!$usuario) {
-        $stmtCreateUser = $pdo->prepare("CALL CreateOwnerUser(:usuario, :password, :email, :nombre_completo, :id_propietario)");
-        $stmtCreateUser->execute([
-            ':usuario' => $propietario['email'], // Usuario es el correo
-            ':password' => password_hash('123456', PASSWORD_BCRYPT), // Contraseña por defecto
-            ':email' => $propietario['email'],
-            ':nombre_completo' => $propietario['nombres'] . ' ' . $propietario['apellidos'],
-            ':id_propietario' => $propietario['id_propietario'],
-        ]);
-        $usuarioCreado = $stmtCreateUser->fetch(PDO::FETCH_ASSOC);
-        $stmtCreateUser->closeCursor();
-        
-        $userId = $usuarioCreado['id_usuario'] ?? null;
-        
-        if (!$userId) {
-            $_SESSION['error'] = 'No se pudo crear el usuario para el propietario';
-            header('Location: ../locales/index.php');
-            exit;
-        }
-        
-        // Obtener el usuario recién creado
-        $stmtUser2 = $pdo->prepare("CALL GetOwnerUserByPropietario(:id_propietario)");
-        $stmtUser2->execute([':id_propietario' => $propietario['id_propietario']]);
-        $usuario = $stmtUser2->fetch(PDO::FETCH_ASSOC);
-        $stmtUser2->closeCursor();
+        $_SESSION['error'] = 'Este propietario no tiene un usuario asignado. Contacta a soporte antes de activar la membresía.';
+        header('Location: ../locales/index.php');
+        exit;
     }
 
     // Obtener membresía del local

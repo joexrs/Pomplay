@@ -9,7 +9,7 @@ use App\Controllers\Api\HourController;
 use App\Controllers\Api\LocalController;
 use App\Controllers\Api\ClipController;
 use App\Controllers\Api\PlayController;
-use App\Controllers\Api\VideoPinController;
+use App\Controllers\Api\VideoPasswordController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Controllers\VideoController;
@@ -18,7 +18,7 @@ use App\Repositories\AuthRepository;
 use App\Repositories\CourtRepository;
 use App\Repositories\EstadisticasRepository;
 use App\Repositories\LocalRepository;
-use App\Repositories\VideoPinRepository;
+use App\Repositories\VideoPasswordRepository;
 use App\Repositories\VideoRepository;
 
 require_once __DIR__ . '/autoload.php';
@@ -29,7 +29,7 @@ $videoRepository    = new VideoRepository($pdo);
 $courtRepository    = new CourtRepository($pdo);
 $localRepository    = new LocalRepository($pdo);
 $authRepository     = new AuthRepository($pdo);
-$videoPinRepository     = new VideoPinRepository($pdo);
+$videoPasswordRepository = new VideoPasswordRepository($pdo);
 $estadisticasRepository = new EstadisticasRepository($pdo);
 
 return [
@@ -41,8 +41,7 @@ return [
     'apiCourt' => new CourtController($courtRepository),
     'apiLocal' => new LocalController($localRepository),
     'apiHour'  => new HourController($videoRepository),
-    'apiVideoPin' => new VideoPinController($videoPinRepository),
-    'apiClip'          => new ClipController($estadisticasRepository),
+    'apiVideoPassword' => new VideoPasswordController($videoPasswordRepository),
+    'apiClip'          => new ClipController($estadisticasRepository, $videoRepository),
     'apiPlay'          => new PlayController($estadisticasRepository),
 ];
-

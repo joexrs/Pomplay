@@ -18,17 +18,6 @@ $stmt->execute([
 $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt->closeCursor();
 
-// Identificar los videos cuyo local requiere PIN.
-$stmtPrivados = $pdo->query("SELECT id_local FROM locales WHERE COALESCE(es_privado, 0) = 1");
-$localesPrivados = array_fill_keys(array_map('strval', $stmtPrivados->fetchAll(PDO::FETCH_COLUMN)), true);
-$hayVideosPrivados = false;
-foreach ($videos as $videoRow) {
-    if (isset($localesPrivados[(string) ($videoRow['id_local'] ?? '')])) {
-        $hayVideosPrivados = true;
-        break;
-    }
-}
-
 // Obtener locales para el filtro
 $stmtLocales = $pdo->query("CALL GetLocalesPaginadoSimple(200, 0)");
 $locales = $stmtLocales->fetchAll(PDO::FETCH_ASSOC);
@@ -124,19 +113,14 @@ $stmtCanchas->closeCursor();
                    class="btn-icon btn-icon-edit" title="Editar">
                   <i class="bi bi-pencil"></i>
                 </a>
-                <a href="procesos/delete.php?codigo_video=<?= urlencode($row['codigo_video']) ?>"
-                   onclick="return confirm('¿Estás seguro de eliminar este video?')"
-                   class="btn-icon btn-icon-delete" title="Eliminar">
-                  <i class="bi bi-trash"></i>
-                </a>
-                <?php if (isset($localesPrivados[(string) ($row['id_local'] ?? '')])): ?>
-                <button type="button" class="btn-icon btn-vid-pin"
-                        title="Generar PIN de acceso"
-                        aria-label="Generar PIN para <?= htmlspecialchars($row['codigo_video']) ?>"
-                        data-pin-generate="<?= htmlspecialchars($row['codigo_video'], ENT_QUOTES) ?>">
-                  <i class="bi bi-key-fill"></i>
-                </button>
-                <?php endif; ?>
+                <form action="procesos/delete.php" method="POST" class="inline-delete-form"
+                      onsubmit="return confirm('¿Estás seguro de eliminar este video?')">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
+                  <input type="hidden" name="codigo_video" value="<?= htmlspecialchars($row['codigo_video'], ENT_QUOTES) ?>">
+                  <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>
@@ -147,35 +131,32 @@ $stmtCanchas->closeCursor();
 
 </div>
 
-<?php if ($hayVideosPrivados): ?>
-<div id="pinGenerateModal" class="modal-overlay" style="z-index:10000;">
-  <div class="modal-container" style="max-width:460px;">
-    <div class="modal-header" style="padding:18px 24px;margin-bottom:0;">
-      <h3 class="modal-title" style="font-size:1rem;"><i class="bi bi-key-fill"></i> Generar código de acceso</h3>
-      <button class="modal-close" type="button" data-action="close" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div style="padding:20px 24px;">
-      <input type="hidden" id="pinGenVideoCode" value="">
-      <p style="font-size:.85rem;margin:0 0 20px;">Genera un PIN temporal para compartir el video con el cliente.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
-        <div><label class="adm-label" for="pinGenLongitud">Longitud</label><input type="hidden" id="pinGenLongitud" value="6"><div style="padding:10px 12px;">6 dígitos</div></div>
-        <div><label class="adm-label" for="pinGenMinutos">Duración</label><select id="pinGenMinutos" class="adm-select"><option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option></select></div>
-      </div>
-      <button id="pinGenBtn" class="btn-adm-save" type="button" style="width:100%;justify-content:center;"><span class="btn-text"><i class="bi bi-key-fill"></i> Generar PIN</span><span class="spinner-sm" style="display:none;"></span></button>
-      <div id="pinGenResult" style="display:none;margin-top:20px;text-align:center;"><div id="pinGenDisplay" style="font-size:2rem;font-weight:800;letter-spacing:.2em;"></div><p id="pinGenExpiry"></p><button id="pinGenCopy" type="button" class="btn-adm-cancel"><i class="bi bi-clipboard"></i> Copiar PIN</button></div>
-      <div id="pinGenStatus" class="pin-gen-status" style="margin-top:14px;"></div>
-    </div>
-  </div>
-</div>
-<style>.btn-vid-pin{color:#818cf8!important;border:1px solid rgba(99,102,241,.25)!important}.pin-gen-status{line-height:1.4}.pin-gen-status.success{color:#86efac}.pin-gen-status.error{color:#fca5a5}.pin-gen-status.info{color:#a5b4fc}</style>
-<?php endif; ?>
-
 <?php include '../shared/footer_admin.php'; ?>
 
 <script>
 $(document).ready(function () {
   $('#videosTable').DataTable({
-    language: { url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json' },
+    language: {
+      emptyTable: 'No hay videos disponibles en la tabla',
+      info: 'Mostrando _START_ a _END_ de _TOTAL_ videos',
+      infoEmpty: 'Mostrando 0 a 0 de 0 videos',
+      infoFiltered: '(filtrado de _MAX_ videos en total)',
+      lengthMenu: 'Mostrar _MENU_ videos',
+      loadingRecords: 'Cargando...',
+      processing: 'Procesando...',
+      search: 'Buscar:',
+      zeroRecords: 'No se encontraron videos coincidentes',
+      paginate: {
+        first: 'Primero',
+        last: 'Último',
+        next: 'Siguiente',
+        previous: 'Anterior'
+      },
+      aria: {
+        sortAscending: ': activar para ordenar la columna de manera ascendente',
+        sortDescending: ': activar para ordenar la columna de manera descendente'
+      }
+    },
     pageLength: 25,
     lengthChange: false,
     searching: false,
@@ -187,7 +168,3 @@ $(document).ready(function () {
   });
 });
 </script>
-<?php if ($hayVideosPrivados): ?>
-<script>window.POMPLAY_BASE = <?= json_encode($baseUrl) ?>;</script>
-<script src="<?= $baseUrl ?>/public/js/admin-video-pin.js?v=1.1"></script>
-<?php endif; ?>

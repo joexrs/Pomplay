@@ -19,12 +19,11 @@ final class JWTManager
     private static function getSecretKey(): string
     {
         if (self::$secretKey === null) {
-            // Intentar cargar desde .env
-            $envFile = dirname(__DIR__, 2) . '/.env';
-            if (file_exists($envFile)) {
-                $env = parse_ini_file($envFile);
-                self::$secretKey = $env['JWT_SECRET'] ?? null;
+            if (!function_exists('env')) {
+                require_once dirname(__DIR__, 2) . '/bootstrap/env.php';
             }
+            $secretKey = env('JWT_SECRET');
+            self::$secretKey = is_string($secretKey) && $secretKey !== '' ? $secretKey : null;
 
             // Si no existe, generar una y guardarla
             if (self::$secretKey === null) {

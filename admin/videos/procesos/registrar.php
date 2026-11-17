@@ -1,5 +1,12 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../../bootstrap/autoload.php';
+
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::isAdmin()) {
+    http_response_code(403);
+    exit('Acceso denegado');
+}
+
 include '../../../conexion.php';
 
 // Calcular baseUrl dinámicamente
@@ -27,6 +34,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $video_url     = trim($_POST['video_url']     ?? '');
     $observacion   = trim($_POST['observacion']   ?? '');
     $duracion      = trim($_POST['duracion']      ?? '');
+    $video_password = (string) ($_POST['video_password'] ?? '');
+    $video_password_enabled = ($_POST['video_password_enabled'] ?? '') === '1';
+    $csrfToken = (string) ($_POST['video_password_csrf'] ?? '');
+    if (
+        $csrfToken === ''
+        || empty($_SESSION['video_password_csrf'])
+        || !hash_equals((string) $_SESSION['video_password_csrf'], $csrfToken)
+    ) {
+        $errors[] = 'Token de seguridad inválido. Recarga el formulario e inténtalo nuevamente.';
+    }
+
+    if ($video_password_enabled && $video_password === '') {
+        $errors[] = 'Ingresa una contraseña para proteger el video';
+    } else    if ($video_password_enabled && !\App\Core\PasswordPolicy::meetsRequirements($video_password)) {
+        $errors[] = 'La contraseña del video debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y símbolo (máximo 72 bytes)';
+    }
 
 
     $id_local = trim($_POST['id_local'] ?? '');
@@ -108,11 +131,11 @@ $id_local = (!empty($id_local) && is_numeric($id_local)) ? (int) $id_local : nul
             INSERT INTO video (
                 codigo_video, id_local, fecha_partido, descripcion, hora_partido,
                 codigo_cancha, video_url, observacion, fecha_registro,
-                duracion, estado
+                duracion, estado, password_hash
             ) VALUES (
                 :codigo_video, :id_local, :fecha_partido, :descripcion, :hora_partido,
                 :codigo_cancha, :video_url, :observacion, CURDATE(),
-                :duracion, 1
+                :duracion, 1, :password_hash
             )
         ");
 
@@ -126,6 +149,7 @@ $id_local = (!empty($id_local) && is_numeric($id_local)) ? (int) $id_local : nul
             ':video_url'     => $video_url,
             ':observacion'   => $observacion,
             ':duracion'      => $duracion,
+            ':password_hash' => $video_password_enabled ? password_hash($video_password, PASSWORD_DEFAULT) : null,
         ]);
 
         if (!$result) {

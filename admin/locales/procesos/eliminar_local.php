@@ -1,13 +1,26 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../../bootstrap/autoload.php';
 include '../../../conexion.php';
 
 header('Content-Type: application/json');
+
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::hasAnyRole(['ADMIN', 'SUPER_ADMIN'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+    exit;
+}
 
 // Solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+    exit;
+}
+
+if (!\App\Core\Csrf::validate($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Solicitud no válida. Recarga la página e inténtalo nuevamente.']);
     exit;
 }
 

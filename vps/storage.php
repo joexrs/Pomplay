@@ -6,7 +6,7 @@
  *
  * Acciones disponibles:
  *   - create_dir      : Crea directorio /opt/cctv/recordings/{id_local}/{codigo_cancha}/
- *   - upload_chunk    : Recibe un fragmento (chunk) de 1MB del archivo de video
+ *   - upload_chunk    : Recibe un fragmento (chunk) de hasta 10MB del archivo de video
  *   - finalize_upload : Ensambla todos los chunks y devuelve la video_url final
  *   - check_dir       : Verifica si existe un directorio (debug)
  *
@@ -124,7 +124,7 @@ switch ($action) {
         if (empty($upload_id)) {
             jsonResponse(['ok' => false, 'error' => 'upload_id requerido']);
         }
-        if ($chunk_index < 0 || $total_chunks <= 0) {
+        if ($chunk_index < 0 || $total_chunks <= 0 || $chunk_index >= $total_chunks) {
             jsonResponse(['ok' => false, 'error' => 'chunk_index / total_chunks inválidos']);
         }
         if (!in_array($orig_ext, ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'ts'], true)) {
@@ -133,6 +133,9 @@ switch ($action) {
         if (empty($_FILES['chunk']['tmp_name']) || $_FILES['chunk']['error'] !== UPLOAD_ERR_OK) {
             $errCode = $_FILES['chunk']['error'] ?? -1;
             jsonResponse(['ok' => false, 'error' => 'Error recibiendo chunk (código: ' . $errCode . ')']);
+        }
+        if (($_FILES['chunk']['size'] ?? 0) > 10 * 1024 * 1024) {
+            jsonResponse(['ok' => false, 'error' => 'El fragmento supera el límite de 10 MB']);
         }
 
         // Crear directorio temporal para los chunks de esta subida
@@ -200,6 +203,9 @@ switch ($action) {
         if (!in_array($orig_ext, ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'ts'], true)) {
             jsonResponse(['ok' => false, 'error' => 'Extensión no permitida']);
         }
+        if ($total_chunks <= 0) {
+            jsonResponse(['ok' => false, 'error' => 'total_chunks inválido']);
+        }
 
         // Verificar que existan todos los chunks
         $chunkDir = CHUNKS_TMP_DIR . '/' . $upload_id;
@@ -207,15 +213,36 @@ switch ($action) {
             jsonResponse(['ok' => false, 'error' => 'No se encontraron chunks para este upload_id']);
         }
 
-        $chunkFiles = glob($chunkDir . '/chunk_*');
-        sort($chunkFiles); // orden ascendente
+        $chunkFiles = glob($chunkDir . '/chunk_*') ?: [];
+        $chunksByIndex = [];
+        foreach ($chunkFiles as $chunkFile) {
+            if (!preg_match('/^chunk_(\d+)$/', basename($chunkFile), $match)) {
+                jsonResponse(['ok' => false, 'error' => 'Se encontró un fragmento con nombre inválido']);
+            }
 
-        if (count($chunkFiles) < $total_chunks) {
+            $index = (int) $match[1];
+            if ($index >= $total_chunks || isset($chunksByIndex[$index])) {
+                jsonResponse(['ok' => false, 'error' => 'Se encontró un fragmento duplicado o fuera de rango']);
+            }
+            $chunksByIndex[$index] = $chunkFile;
+        }
+
+        if (count($chunksByIndex) !== $total_chunks) {
+            $missingIndexes = [];
+            for ($index = 0; $index < $total_chunks && count($missingIndexes) < 10; $index++) {
+                if (!isset($chunksByIndex[$index])) {
+                    $missingIndexes[] = $index;
+                }
+            }
             jsonResponse([
                 'ok'    => false,
-                'error' => 'Chunks incompletos: se recibieron ' . count($chunkFiles) . ' de ' . $total_chunks,
+                'error' => 'Chunks incompletos: se recibieron ' . count($chunksByIndex) . ' de ' . $total_chunks
+                    . '; faltan índices: ' . implode(', ', $missingIndexes),
             ]);
         }
+
+        ksort($chunksByIndex, SORT_NUMERIC);
+        $chunkFiles = array_values($chunksByIndex);
 
         // Verificar/crear directorio de destino
         $destDir = RECORDINGS_BASE . '/' . $id_local . '/' . $codigo_cancha;

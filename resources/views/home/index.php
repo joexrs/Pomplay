@@ -11,7 +11,7 @@
                 <select id="search_local" name="search_local" class="glass-select">
                     <option value="">LOCAL</option>
                     <?php foreach ($locales as $loc): ?>
-                        <option value="<?= htmlspecialchars((string) $loc['id_local']) ?>" data-es-privado="<?= (int) ($loc['es_privado'] ?? 0) ?>" <?= isset($searchLocal) && $searchLocal === (int) $loc['id_local'] ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars((string) $loc['id_local']) ?>" <?= isset($searchLocal) && $searchLocal === (int) $loc['id_local'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars(mb_strtoupper($loc['nombre_local'], 'UTF-8')) ?>
                         </option>
                     <?php endforeach; ?>

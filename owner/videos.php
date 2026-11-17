@@ -30,16 +30,7 @@ if (!$localId && !empty($locales)) {
 }
 if (!$localId) die('No tienes locales asignados');
 
-// ── Verificar si el local es privado ─────────────────────────────
-$esLocalPrivado = false;
-try {
-    $stmtPriv = $pdo->prepare("SELECT es_privado FROM locales WHERE id_local = :id_local LIMIT 1");
-    $stmtPriv->execute([':id_local' => $localId]);
-    $localPriv = $stmtPriv->fetch(PDO::FETCH_ASSOC);
-    $esLocalPrivado = (bool) ($localPriv['es_privado'] ?? false);
-} catch (PDOException) {
-    $esLocalPrivado = false;
-}
+$_SESSION['video_password_csrf'] ??= bin2hex(random_bytes(32));
 
 // ── Cambiar local ────────────────────────────────────────────────
 if (!empty($_GET['change_local'])) {
@@ -69,6 +60,15 @@ try {
 } catch (PDOException) {
     $canchas = [];
 }
+
+$protectedVideoCodes = [];
+$stmtProtectedVideos = $pdo->prepare(
+    "SELECT codigo_video FROM video
+     WHERE id_local = :id_local AND password_hash IS NOT NULL AND password_hash <> ''"
+);
+$stmtProtectedVideos->execute([':id_local' => $localId]);
+$protectedVideoCodes = array_fill_keys($stmtProtectedVideos->fetchAll(PDO::FETCH_COLUMN), true);
+$stmtProtectedVideos->closeCursor();
 
 // ── Videos con paginación ────────────────────────────────────────
 try {
@@ -244,7 +244,9 @@ $meses = [
             $fd  = str_replace(array_keys($meses), array_values($meses), date('d M Y', strtotime($video['fecha_partido'])));
             $dur = (int)($video['duracion'] ?? 0);
             $esDescargable = (bool)($video['es_descargable'] ?? false);
-            $videoUrl = $video['video_url'] ?? '';
+            $videoCode = (string) $video['codigo_video'];
+            $videoUrl = $baseUrl . '/public/video-proxy.php?codigo_video=' . rawurlencode($videoCode);
+            $isVideoProtected = isset($protectedVideoCodes[$videoCode]);
             $descr    = $video['descripcion'] ?? '—';
             $codCancha = $video['cancha_nombre'] ?? $video['codigo_cancha'] ?? '—';
             $hora = substr($video['hora_partido'] ?? '', 0, 5);
@@ -282,6 +284,8 @@ $meses = [
                 <button class="table-btn-icon btn-vid-play"
                   title="Reproducir"
                   data-vid-url="<?= htmlspecialchars($videoUrl, ENT_QUOTES) ?>"
+                  data-vid-code="<?= htmlspecialchars($videoCode, ENT_QUOTES) ?>"
+                  data-vid-protected="<?= $isVideoProtected ? '1' : '0' ?>"
                   data-vid-titulo="<?= htmlspecialchars($descr, ENT_QUOTES) ?>"
                   data-vid-cancha="<?= htmlspecialchars($codCancha, ENT_QUOTES) ?>"
                   data-vid-dur="<?= (int)$dur ?>"
@@ -293,17 +297,18 @@ $meses = [
                    href="<?= htmlspecialchars($videoUrl) ?>"
                    download="<?= htmlspecialchars($video['codigo_video']) ?>.mp4"
                    target="_blank"
+                   data-vid-code="<?= htmlspecialchars($videoCode, ENT_QUOTES) ?>"
+                   data-vid-protected="<?= $isVideoProtected ? '1' : '0' ?>"
                    title="Descargar video">
                   <i class="bi bi-download"></i>
                 </a>
                 <?php endif; ?>
-                <?php if ($esLocalPrivado): ?>
-                <button class="table-btn-icon btn-vid-pin"
-                        title="Generar código de acceso"
-                        data-pin-generate="<?= htmlspecialchars($video['codigo_video']) ?>">
+                <button class="table-btn-icon btn-video-password"
+                        title="<?= $isVideoProtected ? 'Cambiar o quitar contraseña' : 'Configurar contraseña' ?>"
+                        data-password-video="<?= htmlspecialchars($videoCode, ENT_QUOTES) ?>"
+                        data-password-protected="<?= $isVideoProtected ? '1' : '0' ?>">
                   <i class="bi bi-key-fill"></i>
                 </button>
-                <?php endif; ?>
               </div>
             </td>
           </tr>
@@ -369,90 +374,44 @@ $meses = [
   </div>
 </div>
 
-<?php if ($esLocalPrivado): ?>
-<!-- ═══ MODAL GENERAR PIN ═══════════════════════════════════════ -->
-<div id="pinGenerateModal" class="modal-overlay" style="z-index:10000;">
-  <div class="modal-container" style="max-width:460px;">
-    <div class="modal-header" style="padding:18px 24px;margin-bottom:0;">
-      <h3 class="modal-title" style="font-size:1rem;">
-        <i class="bi bi-key-fill" style="color:var(--color-brand);"></i>
-        Generar Código de Acceso
-      </h3>
-      <button class="modal-close" data-action="close" title="Cerrar">
-        <i class="bi bi-x-lg" style="font-size:1rem;"></i>
+<div id="videoPasswordModal" class="modal-overlay" aria-hidden="true">
+  <div class="modal-container video-password-modal">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="bi bi-shield-lock"></i> Contraseña del video</h3>
+      <button type="button" class="modal-close" data-password-modal-close aria-label="Cerrar">
+        <i class="bi bi-x-lg"></i>
       </button>
     </div>
-
-    <div style="padding:20px 24px;">
-      <input type="hidden" id="pinGenVideoCode" value="">
-
-      <p style="color:var(--color-text-muted);font-size:0.85rem;margin:0 0 20px;line-height:1.5;">
-        Genera un código temporal para compartir con el usuario que necesita ver este video.
-      </p>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
-        <div>
-          <label class="adm-label" for="pinGenLongitud" style="font-size:0.8rem;">Dígitos</label>
-          <input type="hidden" id="pinGenLongitud" value="6">
-          <div style="padding:10px 12px;color:#f0f0f5;font-size:0.85rem;">6 dígitos</div>
-        </div>
-        <div>
-          <label class="adm-label" for="pinGenMinutos" style="font-size:0.8rem;">Duración</label>
-          <select id="pinGenMinutos" class="form-control" style="padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#f0f0f5;font-size:0.85rem;width:100%;">
-            <option value="15">15 minutos</option>
-            <option value="30" selected>30 minutos</option>
-            <option value="60">1 hora</option>
-            <option value="120">2 horas</option>
-          </select>
-        </div>
-      </div>
-
-      <button id="pinGenBtn" class="btn-filter" style="width:100%;justify-content:center;padding:12px 20px;font-size:0.9rem;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
-        <span class="btn-text"><i class="bi bi-key-fill"></i> Generar código</span>
-        <div class="spinner-sm" style="display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></div>
-      </button>
-
-      <!-- Resultado -->
-      <div id="pinGenResult" style="display:none;margin-top:20px;">
-        <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:14px;padding:20px;text-align:center;">
-          <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em;">Código de acceso</p>
-          <div id="pinGenDisplay" style="font-size:2.2rem;font-weight:800;color:#f0f0f5;letter-spacing:0.2em;font-family:'Courier New',monospace;margin-bottom:8px;"></div>
-          <p id="pinGenExpiry" style="color:rgba(255,255,255,0.4);font-size:0.78rem;margin:0 0 14px;"></p>
-          <button id="pinGenCopy" type="button" style="padding:8px 18px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#a5b4fc;font-size:0.82rem;cursor:pointer;transition:all .2s ease;display:inline-flex;align-items:center;gap:6px;">
-            <i class="bi bi-clipboard"></i> Copiar código
+    <form id="videoPasswordForm" class="video-password-form">
+      <div class="video-password-row">
+        <label class="video-password-toggle" for="owner_video_password_enabled">
+          <input id="owner_video_password_enabled" class="video-password-switch" type="checkbox">
+          <span>Proteger con contraseña</span>
+        </label>
+        <div id="owner_video_password_control" class="video-password-control" hidden>
+          <input id="owner_video_password" type="password" minlength="8" maxlength="72"
+                 pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,72}"
+                 title="Usa al menos 8 caracteres e incluye una mayúscula, una minúscula, un número y un símbolo."
+                 autocomplete="new-password" placeholder="Ingrese la contraseña">
+          <button type="button" class="video-password-eye" aria-label="Mostrar contraseña" aria-pressed="false">
+            <i class="bi bi-eye" aria-hidden="true"></i>
           </button>
         </div>
       </div>
-
-      <!-- Status message -->
-      <div id="pinGenStatus" class="pin-gen-status" style="margin-top:14px;font-size:0.82rem;padding:0;border-radius:8px;"></div>
-    </div>
+      <p id="owner_video_password_help" class="video-password-help"></p>
+      <p id="owner_video_password_message" class="video-password-message" role="status"></p>
+      <div class="video-password-actions">
+        <button type="button" class="btn-filter-clear" data-password-modal-close>Cancelar</button>
+        <button type="submit" id="owner_video_password_save" class="btn-filter">Guardar</button>
+      </div>
+    </form>
   </div>
 </div>
-
-<style>
-@keyframes spin { to { transform:rotate(360deg); } }
-.btn-vid-pin {
-  background: rgba(99,102,241,0.12) !important;
-  color: #818cf8 !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-}
-.btn-vid-pin:hover {
-  background: rgba(99,102,241,0.2) !important;
-  transform: translateY(-1px);
-}
-.pin-gen-status { line-height:1.4; }
-.pin-gen-status.success { color:#86efac; }
-.pin-gen-status.error { color:#fca5a5; }
-.pin-gen-status.info { color:#a5b4fc; }
-.pin-gen-status i { margin-right:6px; }
-#pinGenCopy.copied { background:rgba(34,197,94,0.15) !important; color:#86efac !important; border-color:rgba(34,197,94,0.3) !important; }
-</style>
-<?php endif; ?>
 
 <?php include __DIR__ . '/../admin/shared/footer_admin.php'; ?>
 
 <script>window.POMPLAY_BASE = '<?= $baseUrl ?>';</script>
+<script>window.VIDEO_PASSWORD_CSRF = <?= json_encode($_SESSION['video_password_csrf']) ?>;</script>
 <script>
 /* ── Video Modal ───────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
@@ -467,7 +426,196 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancha  = btn.dataset.vidCancha || '';
     const duracion = parseInt(btn.dataset.vidDur, 10) || 0;
     const fecha   = btn.dataset.vidFecha  || '';
-    abrirVideoModal(url, titulo, cancha, duracion, fecha);
+    abrirVideoModal(
+      url,
+      titulo,
+      cancha,
+      duracion,
+      fecha,
+      btn.dataset.vidCode || '',
+      btn.dataset.vidProtected === '1'
+    );
+  });
+
+  document.addEventListener('click', async function (event) {
+    const link = event.target.closest('.btn-vid-dl[data-vid-protected="1"]');
+    if (!link) return;
+    event.preventDefault();
+    const downloadWindow = window.open('about:blank', '_blank');
+    if (!downloadWindow) {
+      window.alert('Permite las ventanas emergentes para descargar este video.');
+      return;
+    }
+
+    const password = window.prompt('Este video está protegido. Ingresa su contraseña:');
+    if (password === null) {
+      downloadWindow.close();
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${window.POMPLAY_BASE}/api/videos/${encodeURIComponent(link.dataset.vidCode)}/verificar-contrasena`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.valid !== true) {
+        downloadWindow.close();
+        window.alert(result.message || 'Contraseña incorrecta.');
+        return;
+      }
+      downloadWindow.location = link.href;
+    } catch (error) {
+      downloadWindow.close();
+      window.alert('No se pudo verificar la contraseña. Inténtalo nuevamente.');
+    }
+  });
+
+  const passwordModal = document.getElementById('videoPasswordModal');
+  const passwordForm = document.getElementById('videoPasswordForm');
+  const passwordEnabled = document.getElementById('owner_video_password_enabled');
+  const passwordControl = document.getElementById('owner_video_password_control');
+  const passwordInput = document.getElementById('owner_video_password');
+  const passwordHelp = document.getElementById('owner_video_password_help');
+  const passwordMessage = document.getElementById('owner_video_password_message');
+  const passwordSave = document.getElementById('owner_video_password_save');
+  const passwordEye = document.querySelector('#videoPasswordModal .video-password-eye');
+  let activePasswordButton = null;
+  let videoWasProtected = false;
+  let passwordSaving = false;
+
+  function closePasswordModal() {
+    if (passwordSaving) return;
+    passwordModal.classList.remove('active');
+    passwordModal.setAttribute('aria-hidden', 'true');
+    passwordInput.value = '';
+    passwordInput.type = 'password';
+    passwordMessage.textContent = '';
+    passwordMessage.className = 'video-password-message';
+    passwordEye.setAttribute('aria-pressed', 'false');
+    passwordEye.setAttribute('aria-label', 'Mostrar contraseña');
+    passwordEye.innerHTML = '<i class="bi bi-eye" aria-hidden="true"></i>';
+    activePasswordButton = null;
+  }
+
+  passwordEnabled.addEventListener('change', function () {
+    passwordControl.hidden = !this.checked;
+    passwordInput.disabled = !this.checked;
+    passwordInput.required = this.checked && !videoWasProtected;
+    passwordMessage.textContent = '';
+    passwordMessage.className = 'video-password-message';
+    if (!this.checked) {
+      passwordInput.value = '';
+      passwordInput.type = 'password';
+      passwordEye.setAttribute('aria-pressed', 'false');
+      passwordEye.setAttribute('aria-label', 'Mostrar contraseña');
+      passwordEye.innerHTML = '<i class="bi bi-eye" aria-hidden="true"></i>';
+    }
+  });
+
+  passwordEye.addEventListener('click', function () {
+    const show = passwordInput.type === 'password';
+    passwordInput.type = show ? 'text' : 'password';
+    passwordEye.setAttribute('aria-pressed', String(show));
+    passwordEye.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    passwordEye.innerHTML = `<i class="bi bi-eye${show ? '-slash' : ''}" aria-hidden="true"></i>`;
+    passwordInput.focus();
+  });
+
+  passwordModal.addEventListener('click', function (event) {
+    if (event.target === passwordModal || event.target.closest('[data-password-modal-close]')) {
+      closePasswordModal();
+    }
+  });
+
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-password-video]');
+    if (!btn || passwordSaving) return;
+    activePasswordButton = btn;
+    videoWasProtected = btn.dataset.passwordProtected === '1';
+    passwordEnabled.checked = videoWasProtected;
+    passwordControl.hidden = !videoWasProtected;
+    passwordInput.disabled = !videoWasProtected;
+    passwordInput.required = false;
+    passwordInput.value = '';
+    passwordHelp.textContent = videoWasProtected
+      ? 'El video está protegido. Ingresa otra contraseña con mayúscula, minúscula, número y símbolo para cambiarla, o desactiva la opción para quitarla.'
+      : 'Activa la opción para asignar una contraseña de mínimo 8 caracteres con mayúscula, minúscula, número y símbolo.';
+    passwordMessage.textContent = '';
+    passwordMessage.className = 'video-password-message';
+    passwordModal.classList.add('active');
+    passwordModal.setAttribute('aria-hidden', 'false');
+    if (videoWasProtected) passwordInput.focus();
+  });
+
+  passwordForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!activePasswordButton || passwordSave.disabled) return;
+
+    const value = passwordInput.value;
+    const remove = !passwordEnabled.checked;
+    if (!remove && value === '' && !videoWasProtected) {
+      passwordMessage.className = 'video-password-message error';
+      passwordMessage.textContent = 'Ingresa una contraseña para proteger el video.';
+      passwordInput.focus();
+      return;
+    }
+    const strongPassword = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,72}$/;
+    if (!remove && value !== '' && (!strongPassword.test(value) || new TextEncoder().encode(value).length > 72)) {
+      passwordMessage.className = 'video-password-message error';
+      passwordMessage.textContent = 'La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y símbolo (máximo 72 bytes).';
+      passwordInput.focus();
+      return;
+    }
+    if (!remove && value === '' && videoWasProtected) {
+      closePasswordModal();
+      return;
+    }
+
+    const triggerButton = activePasswordButton;
+    const code = triggerButton.dataset.passwordVideo;
+    passwordSaving = true;
+    passwordSave.disabled = true;
+    triggerButton.disabled = true;
+    passwordMessage.textContent = 'Guardando...';
+    try {
+      const response = await fetch(
+        `${window.POMPLAY_BASE}/api/videos/${encodeURIComponent(code)}/contrasena`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: value,
+            remove,
+            csrf_token: window.VIDEO_PASSWORD_CSRF,
+          }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'No se pudo actualizar');
+
+      triggerButton.dataset.passwordProtected = result.protected ? '1' : '0';
+      triggerButton.title = result.protected ? 'Cambiar o quitar contraseña' : 'Configurar contraseña';
+      document.querySelectorAll('[data-vid-code]').forEach(function (item) {
+        if (item.dataset.vidCode === code) {
+          item.dataset.vidProtected = result.protected ? '1' : '0';
+        }
+      });
+      passwordSaving = false;
+      closePasswordModal();
+      window.alert(result.message);
+    } catch (error) {
+      passwordMessage.className = 'video-password-message error';
+      passwordMessage.textContent = error.message || 'No se pudo actualizar la contraseña.';
+    } finally {
+      passwordSaving = false;
+      passwordSave.disabled = false;
+      triggerButton.disabled = false;
+    }
   });
 
   // Cerrar al hacer click en el overlay (fuera del contenedor)
@@ -483,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-function abrirVideoModal(url, titulo, cancha, duracion, fecha) {
+async function abrirVideoModal(url, titulo, cancha, duracion, fecha, codigoVideo, protectedVideo) {
   const modal  = document.getElementById('vidModal');
   const player = document.getElementById('vid-player');
   const source = document.getElementById('vid-player-src');
@@ -492,6 +640,29 @@ function abrirVideoModal(url, titulo, cancha, duracion, fecha) {
   if (!modal || !player || !source) {
     console.error('vidModal: elementos no encontrados en el DOM');
     return;
+  }
+
+  if (protectedVideo) {
+    const password = window.prompt('Este video está protegido. Ingresa su contraseña:');
+    if (password === null) return;
+    try {
+      const response = await fetch(
+        `${window.POMPLAY_BASE}/api/videos/${encodeURIComponent(codigoVideo)}/verificar-contrasena`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.valid !== true) {
+        window.alert(result.message || 'Contraseña incorrecta.');
+        return;
+      }
+    } catch (error) {
+      window.alert('No se pudo verificar la contraseña. Inténtalo nuevamente.');
+      return;
+    }
   }
 
   document.getElementById('vid-modal-title-text').textContent = titulo;
@@ -540,6 +711,3 @@ function formatDurJS(seg) {
   return `${s}s`;
 }
 </script>
-<?php if ($esLocalPrivado): ?>
-<script src="<?= $baseUrl ?>/public/js/admin-video-pin.js?v=1.0"></script>
-<?php endif; ?>

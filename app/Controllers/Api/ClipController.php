@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controllers\Api;
 
 use App\Repositories\EstadisticasRepository;
+use App\Repositories\VideoRepository;
+use App\Controllers\Api\VideoPasswordController;
 
 /**
  * ClipController — Proxy hacia el VPS para recorte profesional de clips CCTV.
@@ -17,7 +19,8 @@ use App\Repositories\EstadisticasRepository;
 final class ClipController
 {
     public function __construct(
-        private EstadisticasRepository $estadisticas
+        private EstadisticasRepository $estadisticas,
+        private VideoRepository $videos
     ) {
     }
 
@@ -67,15 +70,34 @@ final class ClipController
 
         // Parsear body JSON
         $body  = file_get_contents('php://input');
-        $input = json_decode($body ?: '{}', true) ?? [];
+        $input = json_decode($body ?: '{}', true);
+        $input = is_array($input) ? $input : [];
 
         // ── Validación de parámetros ────────────────────────────────
-        $videoUrl  = trim($input['videoUrl']  ?? '');
+        $codigoVideo = trim((string) ($input['codigoVideo'] ?? ''));
+        $video = $codigoVideo !== '' ? $this->videos->findByCode($codigoVideo) : null;
+        if ($video === null) {
+            $this->jsonError(404, 'Video no encontrado');
+            return;
+        }
+        $passwordHash = (string) ($video['password_hash'] ?? '');
+        if ($passwordHash !== '' && !VideoPasswordController::hasTemporaryAccess($codigoVideo, $passwordHash)) {
+            $this->jsonError(403, 'Debes ingresar la contraseña del video');
+            return;
+        }
+
+        $videoUrl = $this->resolveVideoUrl((string) ($video['video_url'] ?? ''));
+        $signedVideoUrl = $this->createSignedDownloadUrl($videoUrl, 21600);
+        if (strtolower((string) parse_url($videoUrl, PHP_URL_HOST)) === 'cctv.pomplay.com.pe' && $signedVideoUrl === null) {
+            $this->jsonError(503, 'El acceso seguro al almacenamiento de video no está configurado');
+            return;
+        }
+        $videoUrl = $signedVideoUrl ?? $videoUrl;
         $startTime = (float)($input['startTime'] ?? -1);
         $endTime   = (float)($input['endTime']   ?? -1);
 
         if (empty($videoUrl)) {
-            $this->jsonError(400, 'videoUrl es requerido');
+            $this->jsonError(400, 'El archivo del video no está disponible');
             return;
         }
 
@@ -112,7 +134,6 @@ final class ClipController
 
         // ── Parámetros opcionales ───────────────────────────────────
         $cameraId     = $input['cameraId'] ?? null;
-        $codigoVideo  = trim($input['codigoVideo'] ?? '');
         $idLocal      = isset($input['idLocal']) ? (int) $input['idLocal'] : null;
         $codigoCancha = trim($input['codigoCancha'] ?? '');
         $zoom         = (float)($input['zoom'] ?? 1);
@@ -381,10 +402,24 @@ final class ClipController
     /** Descarga completa por una ruta propia para archivos largos. */
     public function downloadFullVideo(): void
     {
-        $url = trim($_GET['url'] ?? '');
+        $codigoVideo = trim((string) ($_GET['codigo_video'] ?? ''));
+        $video = $codigoVideo !== '' ? $this->videos->findByCode($codigoVideo) : null;
+        if ($video === null) {
+            http_response_code(404);
+            echo 'Video no encontrado';
+            return;
+        }
+        $passwordHash = (string) ($video['password_hash'] ?? '');
+        if ($passwordHash !== '' && !VideoPasswordController::hasTemporaryAccess($codigoVideo, $passwordHash)) {
+            http_response_code(403);
+            echo 'Debes ingresar la contraseña del video';
+            return;
+        }
+
+        $url = $this->resolveVideoUrl((string) ($video['video_url'] ?? ''));
         if (!$this->isAllowedVideoUrl($url)) {
-            http_response_code($url === '' ? 400 : 403);
-            echo $url === '' ? 'URL requerida' : 'Dominio no permitido';
+            http_response_code($url === '' ? 404 : 403);
+            echo $url === '' ? 'Video sin archivo disponible' : 'Dominio no permitido';
             return;
         }
 
@@ -392,25 +427,33 @@ final class ClipController
         // que mantener abierta una conexión PHP durante toda la transferencia.
         $parts = parse_url($url);
         $videoPath = rawurldecode($parts['path'] ?? '');
-        if (strtolower($parts['host'] ?? '') === 'cctv.pomplay.com.pe'
-            && preg_match('#^/videos/(\d+)/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+\.mp4)$#i', $videoPath, $matches)) {
-            $secret = (string) env('VPS_KEY', '');
-            if ($secret !== '') {
-                $relativePath = $matches[1] . '/' . $matches[2] . '/' . $matches[3];
-                $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', trim($_GET['filename'] ?? basename($relativePath)));
-                if (!str_ends_with(strtolower($filename), '.mp4')) $filename .= '.mp4';
-                $expires = time() + 21600;
-                $signature = hash_hmac('sha256', $relativePath . "\n" . $filename . "\n" . $expires, $secret);
-                $downloadUrl = 'https://cctv.pomplay.com.pe/download.php?' . http_build_query([
-                    'path' => $relativePath,
-                    'filename' => $filename,
-                    'expires' => $expires,
-                    'signature' => $signature,
-                ]);
-                header('Cache-Control: no-store');
-                header('Location: ' . $downloadUrl, true, 302);
+        if (strtolower($parts['host'] ?? '') === 'cctv.pomplay.com.pe') {
+            if (!preg_match('#^/videos/(\d+)/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+\.mp4)$#i', $videoPath, $matches)) {
+                http_response_code(404);
+                echo 'Ruta de video no compatible';
                 return;
             }
+            $secret = (string) env('VPS_KEY', '');
+            if ($secret === '') {
+                http_response_code(503);
+                echo 'El acceso seguro al almacenamiento de video no está configurado';
+                return;
+            }
+
+            $relativePath = $matches[1] . '/' . $matches[2] . '/' . $matches[3];
+            $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', trim($_GET['filename'] ?? basename($relativePath)));
+            if (!str_ends_with(strtolower($filename), '.mp4')) $filename .= '.mp4';
+            $expires = time() + 21600;
+            $signature = hash_hmac('sha256', $relativePath . "\n" . $filename . "\n" . $expires, $secret);
+            $downloadUrl = 'https://cctv.pomplay.com.pe/download.php?' . http_build_query([
+                'path' => $relativePath,
+                'filename' => $filename,
+                'expires' => $expires,
+                'signature' => $signature,
+            ]);
+            header('Cache-Control: no-store');
+            header('Location: ' . $downloadUrl, true, 302);
+            return;
         }
 
         if (!function_exists('curl_init')) {
@@ -458,7 +501,14 @@ final class ClipController
             echo 'Rango de descarga no válido';
             return;
         }
-        $ch = curl_init($url);
+        $checkUrl = $this->createSignedDownloadUrl($url, 3600) ?? $url;
+        if (strtolower((string) parse_url($url, PHP_URL_HOST)) === 'cctv.pomplay.com.pe'
+            && $checkUrl === $url) {
+            http_response_code(503);
+            echo json_encode(['ready' => false, 'error' => 'El acceso seguro al almacenamiento de video no está configurado']);
+            return;
+        }
+        $ch = curl_init($checkUrl);
         $curlOptions = [
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 5,
@@ -546,10 +596,24 @@ final class ClipController
     public function checkFullVideo(): void
     {
         header('Content-Type: application/json; charset=utf-8');
-        $url = trim($_GET['url'] ?? '');
+        $codigoVideo = trim((string) ($_GET['codigo_video'] ?? ''));
+        $video = $codigoVideo !== '' ? $this->videos->findByCode($codigoVideo) : null;
+        if ($video === null) {
+            http_response_code(404);
+            echo json_encode(['ready' => false, 'error' => 'Video no encontrado']);
+            return;
+        }
+        $passwordHash = (string) ($video['password_hash'] ?? '');
+        if ($passwordHash !== '' && !VideoPasswordController::hasTemporaryAccess($codigoVideo, $passwordHash)) {
+            http_response_code(403);
+            echo json_encode(['ready' => false, 'error' => 'Debes ingresar la contraseña del video']);
+            return;
+        }
+
+        $url = $this->resolveVideoUrl((string) ($video['video_url'] ?? ''));
         if (!$this->isAllowedVideoUrl($url)) {
-            http_response_code($url === '' ? 400 : 403);
-            echo json_encode(['ready' => false, 'error' => $url === '' ? 'URL requerida' : 'Dominio no permitido']);
+            http_response_code($url === '' ? 404 : 403);
+            echo json_encode(['ready' => false, 'error' => $url === '' ? 'Video sin archivo disponible' : 'Dominio no permitido']);
             return;
         }
 
@@ -558,7 +622,13 @@ final class ClipController
             echo json_encode(['ready' => false, 'error' => 'No está disponible la comprobación del servidor']);
             return;
         }
-        $ch = curl_init($url);
+        $checkUrl = $this->createSignedDownloadUrl($url, 3600);
+        if (strtolower((string) parse_url($url, PHP_URL_HOST)) === 'cctv.pomplay.com.pe' && $checkUrl === null) {
+            http_response_code(503);
+            echo json_encode(['ready' => false, 'error' => 'El acceso seguro al almacenamiento de video no está configurado']);
+            return;
+        }
+        $ch = curl_init($checkUrl ?? $url);
         curl_setopt_array($ch, [
             CURLOPT_NOBODY => true,
             CURLOPT_RETURNTRANSFER => true,
@@ -583,5 +653,58 @@ final class ClipController
         }
         return false;
     }
-}
 
+    private function resolveVideoUrl(string $rawUrl): string
+    {
+        $rawUrl = trim($rawUrl);
+        if ($rawUrl === '' || preg_match('#^https?://#i', $rawUrl)) {
+            return $rawUrl;
+        }
+
+        $base = rtrim((string) env('CCTV_VIDEOS_BASE_URL', 'https://cctv.pomplay.com.pe/videos'), '/');
+        $path = str_replace('\\', '/', $rawUrl);
+        $path = preg_replace('#^file:/+#i', '', $path) ?? $path;
+        if (preg_match('#cctv\.pomplay\.com\.pe/(?:videos/)?(.+)$#i', $path, $matches)) {
+            $path = $matches[1];
+        } elseif (preg_match('#(?:^|/)videos/(.+)$#i', $path, $matches)) {
+            $path = $matches[1];
+        } elseif (preg_match('#(?:^|/)cctv/(.+)$#i', $path, $matches)) {
+            $path = $matches[1];
+        } else {
+            $path = ltrim($path, '/');
+        }
+
+        $parts = array_filter(explode('/', $path), static fn ($part) => $part !== '');
+        return $base . '/' . implode('/', array_map('rawurlencode', $parts));
+    }
+
+    private function createSignedDownloadUrl(string $videoUrl, int $lifetime): ?string
+    {
+        $parts = parse_url($videoUrl);
+        if (strtolower((string) ($parts['host'] ?? '')) !== 'cctv.pomplay.com.pe') {
+            return null;
+        }
+
+        $videoPath = rawurldecode((string) ($parts['path'] ?? ''));
+        if (!preg_match('#^/videos/(\d+)/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+\.mp4)$#i', $videoPath, $matches)) {
+            return null;
+        }
+
+        $secret = (string) env('VPS_KEY', '');
+        if ($secret === '') {
+            return null;
+        }
+
+        $relativePath = $matches[1] . '/' . $matches[2] . '/' . $matches[3];
+        $filename = $matches[3];
+        $expires = time() + $lifetime;
+        $signature = hash_hmac('sha256', $relativePath . "\n" . $filename . "\n" . $expires, $secret);
+
+        return 'https://cctv.pomplay.com.pe/download.php?' . http_build_query([
+            'path' => $relativePath,
+            'filename' => $filename,
+            'expires' => $expires,
+            'signature' => $signature,
+        ]);
+    }
+}

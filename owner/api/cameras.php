@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../bootstrap/env.php';
+require_once __DIR__ . '/../../bootstrap/autoload.php';
 
 // Configuración de sesión extendida para evitar desconexiones en grabaciones largas (1 a 2+ horas)
 if (session_status() === PHP_SESSION_NONE) {
@@ -56,31 +57,79 @@ if (VPS_KEY === '') {
     exit;
 }
 
-$action = $_GET['action'] ?? '';
-$codigo = trim($_GET['codigo'] ?? '');
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::isOwner()) {
+    http_response_code(403);
+    jsonResponse(['ok' => false, 'error' => 'Acceso denegado']);
+}
+
+$ownerId = (int) (\App\Core\Auth::getPropietarioId() ?? 0);
+if ($ownerId <= 0) {
+    http_response_code(403);
+    jsonResponse(['ok' => false, 'error' => 'No se pudo identificar al propietario']);
+}
+
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$request = $requestMethod === 'POST' ? $_POST : $_GET;
+$action = is_string($request['action'] ?? null) ? $request['action'] : '';
+$codigo = is_string($request['codigo'] ?? null) ? trim($request['codigo']) : '';
 
 $vpsActions = ['status', 'start_rec', 'stop_rec', 'list_rec', 'keepalive'];
 
-if (!in_array($action, $vpsActions)) {
+if (!in_array($action, $vpsActions, true)) {
     jsonResponse(['ok' => false, 'error' => 'Acción no válida']);
 }
 if (empty($codigo) && $action !== 'keepalive') {
     jsonResponse(['ok' => false, 'error' => 'Parámetro codigo requerido']);
 }
 
+if (in_array($action, ['start_rec', 'stop_rec'], true)) {
+    if ($requestMethod !== 'POST') {
+        header('Allow: POST');
+        http_response_code(405);
+        jsonResponse(['ok' => false, 'error' => 'Método no permitido']);
+    }
+
+    if (!\App\Core\Csrf::validate($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
+        http_response_code(403);
+        jsonResponse(['ok' => false, 'error' => 'Solicitud no válida. Recarga la página e inténtalo nuevamente.']);
+    }
+} elseif ($requestMethod !== 'GET') {
+    header('Allow: GET');
+    http_response_code(405);
+    jsonResponse(['ok' => false, 'error' => 'Método no permitido']);
+}
+
 // ── Keepalive: renovar sesión y registrar latidos en segundo plano ────────────
 if ($action === 'keepalive') {
-    $reqLocal = !empty($_GET['id_local']) ? (int)$_GET['id_local'] : null;
-    if ($reqLocal && empty($_SESSION['id_local'])) {
-        $_SESSION['id_local'] = $reqLocal;
+    $reqLocal = filter_var($_GET['id_local'] ?? $_SESSION['id_local'] ?? null, FILTER_VALIDATE_INT, [
+        'options' => ['min_range' => 1],
+    ]);
+    if ($reqLocal === false || $reqLocal === null) {
+        http_response_code(400);
+        jsonResponse(['ok' => false, 'error' => 'Parámetro id_local requerido']);
     }
+
+    $stmtOwnerLocal = $pdo->prepare(
+        'SELECT 1 FROM locales WHERE id_local = :id_local AND id_propietario = :id_propietario LIMIT 1'
+    );
+    $stmtOwnerLocal->execute([
+        ':id_local' => $reqLocal,
+        ':id_propietario' => $ownerId,
+    ]);
+    $ownsLocal = $stmtOwnerLocal->fetchColumn() !== false;
+    $stmtOwnerLocal->closeCursor();
+    if (!$ownsLocal) {
+        http_response_code(403);
+        jsonResponse(['ok' => false, 'error' => 'No tienes permiso para este local']);
+    }
+    $_SESSION['id_local'] = (int) $reqLocal;
 
     // Registrar latido en el .txt periódicamente (cada 10 min) para auditar segundo plano
     $ultimoLog = $_SESSION['ultimo_keepalive_log'] ?? 0;
     if (time() - $ultimoLog >= 600) {
         $_SESSION['ultimo_keepalive_log'] = time();
         logInterferencia('KEEPALIVE', 'Navegador activo en segundo plano (Heartbeat OK)', [
-            'id_local' => $_SESSION['id_local'] ?? $reqLocal,
+            'id_local' => (int) $reqLocal,
             'hora'     => date('H:i:s')
         ]);
     }
@@ -90,25 +139,29 @@ if ($action === 'keepalive') {
 
 // ── 1. Obtener TODAS las cámaras de esta cancha desde BD local ────────────────
 $sessionLocalId = $_SESSION['id_local'] ?? null;
-$paramLocalId   = !empty($_GET['id_local']) ? (int)$_GET['id_local'] : null;
-
-// Recuperación de seguridad si la sesión expiró pero el cliente envió su id_local
-if (empty($sessionLocalId) && !empty($paramLocalId)) {
-    try {
-        $stmtVal = $pdo->prepare("SELECT 1 FROM cancha WHERE id_local = ? AND codigo_cancha = ? LIMIT 1");
-        $stmtVal->execute([$paramLocalId, $codigo]);
-        if ($stmtVal->fetchColumn()) {
-            $sessionLocalId = $paramLocalId;
-            $_SESSION['id_local'] = $paramLocalId;
-            logInterferencia('SESION_RECUPERADA', "id_local ($paramLocalId) restaurado exitosamente para Cancha: $codigo");
-        }
-    } catch (PDOException) {}
+$paramLocalId = filter_var($request['id_local'] ?? $sessionLocalId, FILTER_VALIDATE_INT, [
+    'options' => ['min_range' => 1],
+]);
+if ($paramLocalId === false || $paramLocalId === null) {
+    http_response_code(403);
+    jsonResponse(['ok' => false, 'error' => 'Sesión inválida: no se encontró un local autorizado.']);
 }
 
-if (empty($sessionLocalId)) {
-    logInterferencia('ERROR_SESION', "Acción '$action' rechazada para Cancha: $codigo por sesión expirada o sin id_local");
-    jsonResponse(['ok' => false, 'error' => 'Sesión inválida: no se encontró id_local. Vuelve a iniciar sesión.']);
+$stmtOwnerLocal = $pdo->prepare(
+    'SELECT 1 FROM locales WHERE id_local = :id_local AND id_propietario = :id_propietario LIMIT 1'
+);
+$stmtOwnerLocal->execute([
+    ':id_local' => $paramLocalId,
+    ':id_propietario' => $ownerId,
+]);
+$ownsLocal = $stmtOwnerLocal->fetchColumn() !== false;
+$stmtOwnerLocal->closeCursor();
+if (!$ownsLocal) {
+    http_response_code(403);
+    jsonResponse(['ok' => false, 'error' => 'No tienes permiso para este local']);
 }
+$sessionLocalId = (int) $paramLocalId;
+$_SESSION['id_local'] = $sessionLocalId;
 
 try {
     $stmt = $pdo->prepare("
@@ -118,7 +171,9 @@ try {
                cam.grabando,
                c.id_local
         FROM cancha c
-        LEFT JOIN camara cam ON cam.codigo_cancha = c.codigo_cancha
+        LEFT JOIN camara cam
+          ON cam.codigo_cancha = c.codigo_cancha
+         AND cam.id_local = c.id_local
         WHERE c.codigo_cancha = ? AND c.id_local = ?
         ORDER BY cam.posicion
     ");

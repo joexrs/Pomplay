@@ -58,7 +58,7 @@ if ($action === 'upload_chunk') {
         || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
         storageProxyResponse(['ok' => false, 'error' => 'No se recibió un fragmento válido'], 400);
     }
-    if (($file['size'] ?? 0) > 2 * 1024 * 1024) {
+    if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
         storageProxyResponse(['ok' => false, 'error' => 'El fragmento excede el tamaño permitido'], 413);
     }
 
@@ -89,6 +89,8 @@ curl_setopt_array($curl, [
 $responseBody = curl_exec($curl);
 $curlError = curl_error($curl);
 $httpStatus = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+$upstreamTotalMs = (int) round((float) curl_getinfo($curl, CURLINFO_TOTAL_TIME) * 1000);
+$upstreamConnectMs = (int) round((float) curl_getinfo($curl, CURLINFO_CONNECT_TIME) * 1000);
 curl_close($curl);
 
 if (!is_string($responseBody)) {
@@ -101,5 +103,12 @@ if (!is_array($response)) {
     error_log('VPS storage proxy received a non-JSON response (HTTP ' . $httpStatus . ')');
     storageProxyResponse(['ok' => false, 'error' => 'Respuesta inválida del almacenamiento'], 502);
 }
+
+// Permite comparar el tiempo total visto por el navegador con el tramo
+// en que este proxy reenvía el fragmento al VPS.
+$response['_proxy_timing'] = [
+    'upstream_total_ms' => $upstreamTotalMs,
+    'upstream_connect_ms' => $upstreamConnectMs,
+];
 
 storageProxyResponse($response, $httpStatus >= 400 ? $httpStatus : 200);

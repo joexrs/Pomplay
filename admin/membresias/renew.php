@@ -197,6 +197,7 @@ try {
       </div>
 
       <form method="POST" action="procesos/procesar_renovacion.php" id="formRenovar">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
         <input type="hidden" name="id_membresia" value="<?= $membership['id_membresia'] ?>">
         <input type="hidden" name="id_local" value="<?= $localId ?>">
         <input type="hidden" name="esta_vencida" value="<?= $estaVencida ? '1' : '0' ?>">

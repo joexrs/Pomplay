@@ -13,11 +13,13 @@ namespace App\Services;
 class VpsStorageService
 {
     private string $apiUrl;
+    private string $camerasApiUrl;
     private string $apiKey;
 
     public function __construct()
     {
         $this->apiUrl = rtrim(env('VPS_STORAGE_URL', 'https://cctv.pomplay.com.pe/storage.php'), '/');
+        $this->camerasApiUrl = rtrim(env('VPS_CAMERAS_URL', 'https://cctv.pomplay.com.pe/cameras.php'), '/');
         $this->apiKey = (string) env('VPS_KEY', '');
     }
 
@@ -44,6 +46,49 @@ class VpsStorageService
         ]);
 
         return $response['ok'] ?? false;
+    }
+
+    public function deleteCanchaDirectory(int $id_local, string $codigo_cancha): array
+    {
+        if ($id_local < 1 || !preg_match('/^[A-Za-z0-9]+$/', $codigo_cancha)) {
+            return ['ok' => false, 'error' => 'Local o código de cancha no válido'];
+        }
+
+        if ($this->apiKey === '') {
+            return ['ok' => false, 'error' => 'La clave de acceso al VPS no está configurada'];
+        }
+
+        $url = $this->camerasApiUrl . '?' . http_build_query([
+            'action' => 'delete_court',
+            'id_local' => $id_local,
+            'codigo' => $codigo_cancha,
+        ]);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER => ['X-VPS-Key: ' . $this->apiKey],
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        $httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (!is_string($response)) {
+            return ['ok' => false, 'error' => 'No se pudo conectar con el VPS: ' . $error];
+        }
+
+        $result = $this->decodeResponse($response);
+        if ($httpStatus < 200 || $httpStatus >= 300) {
+            $result['ok'] = false;
+            $result['error'] = $result['error'] ?? 'El VPS respondió HTTP ' . $httpStatus;
+        }
+
+        return $result;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

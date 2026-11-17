@@ -1,5 +1,19 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../../bootstrap/autoload.php';
+if (!\App\Core\Auth::isAuthenticated() || !\App\Core\Auth::hasAnyRole(['ADMIN', 'SUPER_ADMIN'])) {
+    http_response_code(403);
+    exit('Acceso denegado');
+}
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
+    http_response_code(405);
+    exit('Método no permitido');
+}
+if (!\App\Core\Csrf::validate($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    exit('Solicitud no válida. Recarga el formulario e inténtalo nuevamente.');
+}
 include '../../../conexion.php';
 require_once __DIR__ . '/../../../app/Services/VpsStorageService.php';
 
@@ -90,8 +104,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($nuevo_password)) {
                 $errors[] = 'La contraseña es obligatoria';
-            } elseif (strlen($nuevo_password) < 6) {
-                $errors[] = 'La contraseña debe tener al menos 6 caracteres';
+            } elseif (!\App\Core\PasswordPolicy::meetsRequirements($nuevo_password)) {
+                $errors[] = 'La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula, número y símbolo (máximo 72 bytes)';
+            }
+        }
+
+        if (!empty($id_propietario) && empty($nuevo_nombre) && empty($nuevo_apellidos) && empty($nuevo_email) && empty($nuevo_password)) {
+            $stmtExistingOwnerUser = $pdo->prepare('CALL GetOwnerUserByPropietario(:id_propietario)');
+            $stmtExistingOwnerUser->execute([':id_propietario' => (int) $id_propietario]);
+            $existingOwnerUser = $stmtExistingOwnerUser->fetch(PDO::FETCH_ASSOC);
+            $stmtExistingOwnerUser->closeCursor();
+            if (!$existingOwnerUser) {
+                $errors[] = 'El propietario seleccionado no tiene usuario de acceso. Contacta a soporte antes de crear el local.';
             }
         }
 
@@ -159,13 +183,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['vps_warning'] = "Local creado, pero error al conectar con el VPS: " . $vpsEx->getMessage();
         }
 
-        // Actualizar es_privado si fue marcado
-        $esPrivado = isset($_POST['es_privado']) ? 1 : 0;
-        if ($esPrivado) {
-            $stmtPriv = $pdo->prepare("UPDATE locales SET es_privado = :es_privado WHERE id_local = :id_local");
-            $stmtPriv->execute([':es_privado' => $esPrivado, ':id_local' => $localId]);
-        }
-        
         $propietarioId = null;
         $userId = null;
         
@@ -182,22 +199,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($existingUser) {
                 $userId = $existingUser['id_usuario'];
             } else {
-                // Crear usuario para el propietario existente (usuario = email)
-                $propData = $pdo->prepare("CALL GetPropietarioById(:id_propietario)");
-                $propData->execute([':id_propietario' => $propietarioId]);
-                $prop = $propData->fetch(PDO::FETCH_ASSOC);
-                $propData->closeCursor();
-                
-                if ($prop) {
-                    $stmtUser = $pdo->prepare("CALL CreateOwnerUser(:usuario, :password, :id_propietario)");
-                    $stmtUser->execute([
-                        ':usuario' => $prop['email'],
-                        ':password' => password_hash('123456', PASSWORD_BCRYPT),
-                        ':id_propietario' => $propietarioId,
-                    ]);
-                    $userId = (int) ($stmtUser->fetch(PDO::FETCH_ASSOC)['id_usuario'] ?? 0);
-                    $stmtUser->closeCursor();
-                }
+                $_SESSION['error'] = 'El propietario seleccionado no tiene usuario de acceso. Contacta a soporte antes de crear el local.';
+                header('Location: ' . $baseUrl . '/admin/locales/add.php');
+                exit;
             }
 
             // Si se subió un logo nuevo aunque el propietario ya exista, actualizarlo

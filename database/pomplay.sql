@@ -47,11 +47,6 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `CheckMembresiaExists`
     LIMIT 1;
 END$$
 
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `CleanExpiredPins` ()   BEGIN
-    DELETE FROM video_pins
-    WHERE expira_en <= NOW();
-END$$
-
 CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `CountOwnerVideos` (IN `id_local_param` INT)   BEGIN
     SELECT COUNT(*) AS total
     FROM video
@@ -128,9 +123,9 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `CreatePropietario` (I
     SELECT LAST_INSERT_ID() AS id_propietario;
 END$$
 
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `DeleteCancha` (IN `codigo_cancha_param` CHAR(10))   BEGIN
+CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `DeleteCancha` (IN `id_cancha_param` INT)   BEGIN
     DELETE FROM cancha 
-    WHERE codigo_cancha = codigo_cancha_param;
+    WHERE id_cancha = id_cancha_param;
 END$$
 
 CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `DeleteLocal` (IN `id_local_param` INT)   BEGIN
@@ -184,15 +179,6 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetActiveMembershipPr
     FROM precios_membresias 
     WHERE activo = 1 
     ORDER BY duracion_meses ASC;
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetActivePinByVideo` (IN `p_codigo_video` CHAR(10))   BEGIN
-    SELECT id, codigo_video, pin_hash, pin_longitud, expira_en, creado_en
-    FROM video_pins
-    WHERE codigo_video = p_codigo_video
-      AND expira_en > NOW()
-    ORDER BY creado_en DESC
-    LIMIT 1;
 END$$
 
 CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetActivePropietarios` ()   BEGIN
@@ -482,9 +468,10 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetByCodigoYPaginado`
     LIMIT limit_val OFFSET offset_val;
 END$$
 
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetCamerasByCancha` (IN `p_codigo_cancha` CHAR(10))   BEGIN
+CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetCamerasByCancha` (IN `p_id_local` INT, IN `p_codigo_cancha` CHAR(10))   BEGIN
     SELECT 
         id_camara,
+        id_local,
         codigo_cancha,
         nombre,
         posicion,
@@ -492,18 +479,24 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetCamerasByCancha` (
         activa AS estado,
         created_at AS fecha_creacion
     FROM camara
-    WHERE codigo_cancha = p_codigo_cancha
+    WHERE id_local = p_id_local
+      AND codigo_cancha = p_codigo_cancha
       AND activa = 1
     ORDER BY posicion ASC;
 END$$
 
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetCamerasForVideoSession` (IN `p_codigo_cancha` CHAR(10), IN `p_fecha_partido` DATE, IN `p_hora_partido` TIME)   BEGIN
+CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetCamerasForVideoSession` (IN `p_id_local` INT, IN `p_codigo_cancha` CHAR(10), IN `p_fecha_partido` DATE, IN `p_hora_partido` TIME)   BEGIN
     SELECT 
         v.codigo_video, v.video_url, v.id_camara AS id_camara,
-        c.nombre AS nombre, c.posicion AS posicion_camara, v.duracion
+        c.nombre AS nombre, c.posicion AS posicion_camara, v.duracion,
+        (COALESCE(v.password_hash, '') <> '') AS requiere_contrasena
     FROM video v
-    INNER JOIN camara c ON v.id_camara = c.id_camara
-    WHERE v.codigo_cancha = p_codigo_cancha
+    INNER JOIN camara c
+      ON v.id_camara = c.id_camara
+     AND c.id_local = v.id_local
+     AND c.codigo_cancha = v.codigo_cancha
+    WHERE v.id_local = p_id_local
+      AND v.codigo_cancha = p_codigo_cancha
       AND DATE(v.fecha_partido) = p_fecha_partido
       AND v.hora_partido = p_hora_partido
       AND v.estado = 1
@@ -827,22 +820,9 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetVideosByCanchaWith
     ORDER BY v.fecha_partido DESC, v.hora_partido DESC, c.posicion ASC;
 END$$
 
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `GetVideoWithLocalPrivacy` (IN `p_codigo_video` CHAR(10))   BEGIN
-    SELECT 
-        v.codigo_video, v.id_local, v.fecha_partido, v.descripcion, v.hora_partido,
-        v.codigo_cancha, v.video_url, v.observacion, v.fecha_registro,
-        v.duracion, v.estado,
-        c.descripcion AS descripcion_cancha,
-        l.nombre_local, COALESCE(l.es_privado, 0) AS es_privado
-    FROM video v
-    INNER JOIN cancha c ON v.codigo_cancha = c.codigo_cancha
-    LEFT JOIN locales l ON v.id_local = l.id_local
-    WHERE v.codigo_video = p_codigo_video;
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `InsertCamera` (IN `p_codigo_cancha` CHAR(10), IN `p_nombre` VARCHAR(50), IN `p_posicion` TINYINT, IN `p_url_stream` VARCHAR(255))   BEGIN
-    INSERT INTO camara (codigo_cancha, nombre, posicion, go2rtc_stream)
-    VALUES (p_codigo_cancha, p_nombre, p_posicion, p_url_stream);
+CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `InsertCamera` (IN `p_id_local` INT, IN `p_codigo_cancha` CHAR(10), IN `p_nombre` VARCHAR(50), IN `p_posicion` TINYINT, IN `p_url_stream` VARCHAR(255))   BEGIN
+    INSERT INTO camara (id_local, codigo_cancha, nombre, posicion, go2rtc_stream)
+    VALUES (p_id_local, p_codigo_cancha, p_nombre, p_posicion, p_url_stream);
 
     SELECT LAST_INSERT_ID() AS id_camara;
 END$$
@@ -891,25 +871,6 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `InsertVideoCompleto` 
         p_codigo_cancha, p_video_url, p_observacion, CURDATE(), p_duracion,
         1, 1
     );
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `InsertVideoPin` (IN `p_codigo_video` CHAR(10), IN `p_pin_hash` VARCHAR(255), IN `p_pin_longitud` TINYINT, IN `p_expira_en` DATETIME)   BEGIN
-    INSERT INTO video_pins (codigo_video, pin_hash, pin_longitud, expira_en)
-    VALUES (p_codigo_video, p_pin_hash, p_pin_longitud, p_expira_en);
-    
-    SELECT LAST_INSERT_ID() AS id;
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `InvalidatePinsByVideo` (IN `p_codigo_video` CHAR(10))   BEGIN
-    DELETE FROM video_pins
-    WHERE codigo_video = p_codigo_video;
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `IsLocalPrivado` (IN `p_id_local` INT)   BEGIN
-    SELECT es_privado
-    FROM locales
-    WHERE id_local = p_id_local
-    LIMIT 1;
 END$$
 
 CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `RenovarMembresia` (IN `p_id_membresia` INT, IN `p_fecha_inicio` DATE, IN `p_fecha_vencimiento` DATE, IN `p_tipo_membresia` VARCHAR(50))   BEGIN
@@ -963,13 +924,6 @@ CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `UpdateLocalCompleto` 
     UPDATE locales
     SET nombre_local = p_nombre_local,
         id_propietario = p_id_propietario,
-        fecha_actualizacion = CURRENT_TIMESTAMP
-    WHERE id_local = p_id_local;
-END$$
-
-CREATE DEFINER=`u462193081_pomplay`@`127.0.0.1` PROCEDURE `UpdateLocalPrivado` (IN `p_id_local` INT, IN `p_es_privado` TINYINT)   BEGIN
-    UPDATE locales
-    SET es_privado = p_es_privado,
         fecha_actualizacion = CURRENT_TIMESTAMP
     WHERE id_local = p_id_local;
 END$$
@@ -1137,6 +1091,7 @@ CREATE TABLE `auditoria` (
 
 CREATE TABLE `camara` (
   `id_camara` int(11) NOT NULL,
+  `id_local` int(11) NOT NULL,
   `codigo_cancha` char(10) NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
@@ -1150,26 +1105,9 @@ CREATE TABLE `camara` (
 -- Volcado de datos para la tabla `camara`
 --
 
-INSERT INTO `camara` (`id_camara`, `codigo_cancha`, `nombre`, `created_at`, `go2rtc_stream`, `posicion`, `activa`, `grabando`) VALUES
-(1, 'C02', 'Cámara 1', '2026-07-02 10:53:45', 'C02_cam1_hd', 1, 1, 0),
-(2, 'C02', 'Cámara 2', '2026-07-02 10:53:45', 'C02_cam2_hd', 2, 1, 0);
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `camaras`
---
-
-CREATE TABLE `camaras` (
-  `id_camara` int(11) NOT NULL,
-  `codigo_cancha` char(10) NOT NULL COMMENT 'FK a cancha',
-  `nombre` varchar(50) NOT NULL DEFAULT 'Principal' COMMENT 'Nombre descriptivo: Principal, Panorámica, etc',
-  `posicion` tinyint(2) NOT NULL DEFAULT 1 COMMENT 'Orden de visualización (1=primera, 2=segunda)',
-  `url_stream` varchar(255) DEFAULT NULL COMMENT 'URL del stream en vivo (opcional)',
-  `estado` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=activa, 0=inactiva',
-  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
-  `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `camara` (`id_camara`, `id_local`, `codigo_cancha`, `nombre`, `created_at`, `go2rtc_stream`, `posicion`, `activa`, `grabando`) VALUES
+(1, 2, 'C02', 'Cámara 1', '2026-07-02 10:53:45', 'C02_cam1_hd', 1, 1, 0),
+(2, 2, 'C02', 'Cámara 2', '2026-07-02 10:53:45', 'C02_cam2_hd', 2, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -1238,7 +1176,6 @@ CREATE TABLE `locales` (
   `id_local` int(11) NOT NULL,
   `nombre_local` varchar(100) NOT NULL,
   `id_propietario` int(11) DEFAULT NULL,
-  `es_privado` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=videos de este local requieren PIN de acceso',
   `estado` tinyint(1) DEFAULT 1 COMMENT '1=activo, 0=inactivo (eliminado lógico)',
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -1248,12 +1185,12 @@ CREATE TABLE `locales` (
 -- Volcado de datos para la tabla `locales`
 --
 
-INSERT INTO `locales` (`id_local`, `nombre_local`, `id_propietario`, `es_privado`, `estado`, `fecha_creacion`, `fecha_actualizacion`) VALUES
-(1, 'IDP - Básquet', 2, 0, 1, '2026-05-01 23:39:39', '2026-07-07 12:04:30'),
-(2, 'City Gol', 3, 0, 1, '2026-06-15 00:59:38', '2026-07-23 21:38:04'),
-(3, 'LA PICHANGA - SUPERLIGA', 1, 0, 1, '2026-07-21 03:58:56', '2026-07-21 04:56:43'),
-(4, 'MEGO - SA', 1, 0, 1, '2026-07-24 06:17:18', '2026-07-24 06:17:18'),
-(5, 'MEGO - SA', 1, 0, 1, '2026-07-24 06:17:18', '2026-07-24 06:17:18');
+INSERT INTO `locales` (`id_local`, `nombre_local`, `id_propietario`, `estado`, `fecha_creacion`, `fecha_actualizacion`) VALUES
+(1, 'IDP - Básquet', 2, 1, '2026-05-01 23:39:39', '2026-07-07 12:04:30'),
+(2, 'City Gol', 3, 1, '2026-06-15 00:59:38', '2026-07-23 21:38:04'),
+(3, 'LA PICHANGA - SUPERLIGA', 1, 1, '2026-07-21 03:58:56', '2026-07-21 04:56:43'),
+(4, 'MEGO - SA', 1, 1, '2026-07-24 06:17:18', '2026-07-24 06:17:18'),
+(5, 'MEGO - SA', 1, 1, '2026-07-24 06:17:18', '2026-07-24 06:17:18');
 
 -- --------------------------------------------------------
 
@@ -1422,14 +1359,15 @@ CREATE TABLE `video` (
   `descripcion` varchar(50) NOT NULL,
   `hora_partido` time NOT NULL,
   `codigo_cancha` char(10) NOT NULL,
-  `id_camara` int(11) DEFAULT NULL COMMENT 'FK a camaras - NULL si es video sin cámara específica',
+  `id_camara` int(11) DEFAULT NULL COMMENT 'FK a camara - NULL si es video sin cámara específica',
   `video_url` varchar(255) NOT NULL,
   `observacion` text DEFAULT NULL,
   `fecha_registro` date DEFAULT NULL,
   `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `duracion` varchar(50) NOT NULL,
   `estado` tinyint(1) DEFAULT 1,
-  `es_descargable` tinyint(1) DEFAULT 1
+  `es_descargable` tinyint(1) DEFAULT 1,
+  `password_hash` varchar(255) DEFAULT NULL COMMENT 'Optional hash protecting this video'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -1440,20 +1378,6 @@ INSERT INTO `video` (`codigo_video`, `id_local`, `fecha_partido`, `descripcion`,
 ('V010', 2, '2026-07-06', '06/07/2026 20:00', '20:00:00', 'C02', 1, 'https://cctv.pomplay.com.pe/videos/2/C02/06-07-2026_20-00-00.mp4', NULL, '2026-07-07', '2026-07-21 05:26:09', '42:55', 1, 1);
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `video_pins`
---
-
-CREATE TABLE `video_pins` (
-  `id` int(11) NOT NULL,
-  `codigo_video` char(10) NOT NULL,
-  `pin_hash` varchar(255) NOT NULL COMMENT 'PIN hasheado con bcrypt',
-  `pin_longitud` tinyint(3) NOT NULL DEFAULT 6 COMMENT 'Longitud del PIN: 4 o 6 dígitos',
-  `expira_en` datetime NOT NULL COMMENT 'Fecha/hora de expiración del PIN',
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
-  `usado` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=PIN ya fue utilizado'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Índices para tablas volcadas
@@ -1471,15 +1395,7 @@ ALTER TABLE `auditoria`
 --
 ALTER TABLE `camara`
   ADD PRIMARY KEY (`id_camara`),
-  ADD KEY `codigo_cancha` (`codigo_cancha`);
-
---
--- Indices de la tabla `camaras`
---
-ALTER TABLE `camaras`
-  ADD PRIMARY KEY (`id_camara`),
-  ADD KEY `idx_camaras_cancha` (`codigo_cancha`),
-  ADD KEY `idx_camaras_cancha_estado` (`codigo_cancha`,`estado`);
+  ADD KEY `idx_camara_local_codigo` (`id_local`,`codigo_cancha`);
 
 --
 -- Indices de la tabla `cancha`
@@ -1576,15 +1492,6 @@ ALTER TABLE `video`
   ADD KEY `video_camara_fk` (`id_camara`);
 
 --
--- Indices de la tabla `video_pins`
---
-ALTER TABLE `video_pins`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_video_pins_video` (`codigo_video`),
-  ADD KEY `idx_video_pins_expira` (`expira_en`),
-  ADD KEY `idx_video_pins_video_expira` (`codigo_video`,`expira_en`);
-
---
 -- AUTO_INCREMENT de las tablas volcadas
 --
 
@@ -1598,12 +1505,6 @@ ALTER TABLE `auditoria`
 -- AUTO_INCREMENT de la tabla `camara`
 --
 ALTER TABLE `camara`
-  MODIFY `id_camara` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT de la tabla `camaras`
---
-ALTER TABLE `camaras`
   MODIFY `id_camara` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
@@ -1661,12 +1562,6 @@ ALTER TABLE `usuarios`
   MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT de la tabla `video_pins`
---
-ALTER TABLE `video_pins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
 -- Restricciones para tablas volcadas
 --
 
@@ -1680,13 +1575,7 @@ ALTER TABLE `auditoria`
 -- Filtros para la tabla `camara`
 --
 ALTER TABLE `camara`
-  ADD CONSTRAINT `camara_ibfk_1` FOREIGN KEY (`codigo_cancha`) REFERENCES `cancha` (`codigo_cancha`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `camaras`
---
-ALTER TABLE `camaras`
-  ADD CONSTRAINT `camaras_cancha_fk` FOREIGN KEY (`codigo_cancha`) REFERENCES `cancha` (`codigo_cancha`) ON DELETE CASCADE;
+  ADD CONSTRAINT `camara_cancha_local_fk` FOREIGN KEY (`id_local`,`codigo_cancha`) REFERENCES `cancha` (`id_local`,`codigo_cancha`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `cancha`
@@ -1727,14 +1616,9 @@ ALTER TABLE `usuarios`
 --
 ALTER TABLE `video`
   ADD CONSTRAINT `video_camara_fk` FOREIGN KEY (`id_camara`) REFERENCES `camara` (`id_camara`) ON DELETE SET NULL,
-  ADD CONSTRAINT `video_ibfk_1` FOREIGN KEY (`codigo_cancha`) REFERENCES `cancha` (`codigo_cancha`),
+  ADD CONSTRAINT `video_cancha_local_fk` FOREIGN KEY (`id_local`,`codigo_cancha`) REFERENCES `cancha` (`id_local`,`codigo_cancha`),
   ADD CONSTRAINT `video_local_fk` FOREIGN KEY (`id_local`) REFERENCES `locales` (`id_local`) ON DELETE SET NULL;
 
---
--- Filtros para la tabla `video_pins`
---
-ALTER TABLE `video_pins`
-  ADD CONSTRAINT `video_pins_video_fk` FOREIGN KEY (`codigo_video`) REFERENCES `video` (`codigo_video`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -39,6 +39,8 @@ if (!$localId && !empty($locales)) {
 }
 if (!$localId) die('No tienes locales asignados');
 
+$_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
+
 // ── Cambiar local ────────────────────────────────────────────────
 if (!empty($_GET['change_local'])) {
     $newId = (int)$_GET['change_local'];
@@ -71,10 +73,11 @@ try {
         $stmtCams    = $pdo->prepare("
             SELECT id_camara, codigo_cancha, nombre, go2rtc_stream, posicion, activa, grabando
             FROM camara
-            WHERE codigo_cancha IN ($placeholders)
+            WHERE id_local = ?
+              AND codigo_cancha IN ($placeholders)
             ORDER BY codigo_cancha, posicion
         ");
-        $stmtCams->execute($codigos);
+        $stmtCams->execute(array_merge([$localId], $codigos));
         foreach ($stmtCams->fetchAll(PDO::FETCH_ASSOC) as $cam) {
             $camarasPorCancha[$cam['codigo_cancha']][] = $cam;
         }
@@ -336,6 +339,23 @@ try {
 
 // ID de local actual del panel para persistencia ante reconexiones
 const CURRENT_LOCAL_ID = <?= json_encode((int)$localId) ?>;
+const CAMERA_CSRF_TOKEN = <?= json_encode(\App\Core\Csrf::token()) ?>;
+
+function requestCameraAction(action, codigo) {
+  const body = new URLSearchParams({
+    action,
+    codigo,
+    id_local: String(CURRENT_LOCAL_ID)
+  });
+  return fetch('api/cameras.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      'X-CSRF-Token': CAMERA_CSRF_TOKEN
+    },
+    body
+  });
+}
 
 // Estado global de peers WebRTC (indexed por slot 1/2)
 const peers   = { 1: null, 2: null };
@@ -459,7 +479,7 @@ function toggleGrabacion(cod) {
     mostrarToast('Tiempo de espera agotado. Verifica la conexión con la cámara.', 'error');
   }, 12000);
 
-  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
+  requestCameraAction(action, cod)
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -610,7 +630,7 @@ function toggleGrabacionModal(cod, btn) {
   btn.disabled  = true;
   btn.innerHTML = '<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:#ec4237;animation:spin .8s linear infinite;"></div> Procesando…';
 
-  fetch(`api/cameras.php?action=${action}&codigo=${encodeURIComponent(cod)}&id_local=${encodeURIComponent(CURRENT_LOCAL_ID)}`)
+  requestCameraAction(action, cod)
     .then(r => r.json())
     .then(data => {
       if (data.ok) {

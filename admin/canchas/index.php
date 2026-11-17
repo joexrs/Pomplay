@@ -13,6 +13,19 @@ $stmt->closeCursor();
 
 <main class="app-content">
 <div class="page-container">
+  <?php if (!empty($_SESSION['success'])): ?>
+    <div role="status" style="background:#166534;color:#fff;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
+      <?= htmlspecialchars($_SESSION['success']) ?>
+    </div>
+    <?php unset($_SESSION['success']); ?>
+  <?php endif; ?>
+  <?php if (!empty($_SESSION['error'])): ?>
+    <div role="alert" style="background:#7f1d1d;color:#fff;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
+      <?= htmlspecialchars($_SESSION['error']) ?>
+    </div>
+    <?php unset($_SESSION['error']); ?>
+  <?php endif; ?>
+  <?php $_SESSION['court_delete_csrf'] ??= bin2hex(random_bytes(32)); ?>
 
   <!-- Page Header -->
   <div class="page-header">
@@ -84,6 +97,15 @@ $stmt->closeCursor();
                    class="btn-icon btn-icon-edit" title="Editar">
                    <i class="bi bi-pencil"></i>
                 </a>
+                <form action="<?= $baseUrl ?>/admin/canchas/procesos/eliminar_cancha.php" method="POST"
+                      class="court-delete-form" style="display:inline">
+                  <input type="hidden" name="id_cancha" value="<?= (int) $row['id_cancha'] ?>">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['court_delete_csrf'], ENT_QUOTES) ?>">
+                  <button type="button" class="btn-icon btn-icon-delete js-confirm-court-delete" title="Eliminar cancha y videos"
+                          aria-label="Eliminar cancha <?= htmlspecialchars($row['codigo_cancha'], ENT_QUOTES) ?> y sus videos">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>
@@ -93,14 +115,173 @@ $stmt->closeCursor();
     
   </div>
 
-</div>
+  </div>
+
+  <dialog id="court-delete-modal" class="court-delete-modal"
+          aria-labelledby="court-delete-title" aria-describedby="court-delete-description">
+  <div class="court-delete-modal__icon" aria-hidden="true">
+    <i class="bi bi-trash3"></i>
+  </div>
+  <h2 id="court-delete-title">Eliminar cancha</h2>
+  <p id="court-delete-description">
+    Se eliminarán permanentemente esta cancha, todos sus videos y la carpeta de grabaciones del VPS.
+    ¿Deseas continuar?
+  </p>
+  <div class="court-delete-modal__actions">
+    <button type="button" class="court-delete-modal__cancel" id="cancel-court-delete">Cancelar</button>
+    <button type="button" class="court-delete-modal__confirm" id="confirm-court-delete">
+      <i class="bi bi-trash3" aria-hidden="true"></i> Sí, eliminar
+    </button>
+  </div>
+</dialog>
 
 <?php include '../shared/footer_admin.php'; ?>
+
+<style>
+  .court-delete-modal {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: min(440px, calc(100% - 32px));
+    padding: 28px;
+    color: #fff;
+    background: #1a1d2e;
+    border: 1px solid rgba(238, 62, 70, .3);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+  }
+
+  .court-delete-modal::backdrop {
+    background: rgba(0, 0, 0, .65);
+    backdrop-filter: blur(4px);
+  }
+
+  .court-delete-modal__icon {
+    display: grid;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+    place-items: center;
+    color: #ee3e46;
+    background: rgba(238, 62, 70, .15);
+    border: 1px solid rgba(238, 62, 70, .3);
+    border-radius: 50%;
+    font-size: 1.4rem;
+  }
+
+  .court-delete-modal h2 {
+    margin: 0 0 10px;
+    color: #fff;
+    font-size: 1.2rem;
+  }
+
+  .court-delete-modal p {
+    margin: 0;
+    color: rgba(255, 255, 255, .72);
+    line-height: 1.55;
+  }
+
+  .court-delete-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .court-delete-modal__actions button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .court-delete-modal__cancel {
+    color: rgba(255, 255, 255, .8);
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .16);
+  }
+
+  .court-delete-modal__confirm {
+    color: #fff;
+    background: #c92f38;
+    border: 1px solid #c92f38;
+  }
+
+  .court-delete-modal__confirm:hover {
+    background: #a9232c;
+  }
+
+  @media (max-width: 480px) {
+    .court-delete-modal__actions {
+      flex-direction: column-reverse;
+    }
+
+    .court-delete-modal__actions button {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    const modal = document.getElementById('court-delete-modal');
+    const confirmButton = document.getElementById('confirm-court-delete');
+    let activeForm = null;
+
+    document.querySelectorAll('.js-confirm-court-delete').forEach(function (button) {
+      button.addEventListener('click', function () {
+        activeForm = button.closest('.court-delete-form');
+        if (activeForm) {
+          modal.showModal();
+        }
+      });
+    });
+
+    document.getElementById('cancel-court-delete').addEventListener('click', function () {
+      modal.close();
+      activeForm = null;
+    });
+
+    confirmButton.addEventListener('click', function () {
+      if (activeForm) {
+        activeForm.requestSubmit();
+      }
+    });
+
+    modal.addEventListener('close', function () {
+      activeForm = null;
+    });
+  })();
+</script>
 
 <script>
 $(document).ready(function () {
   $('#canchasTable').DataTable({
-    language: { url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json' },
+    language: {
+      decimal: ',',
+      thousands: '.',
+      emptyTable: 'No hay canchas disponibles',
+      info: 'Mostrando _START_ a _END_ de _TOTAL_ canchas',
+      infoEmpty: 'Mostrando 0 a 0 de 0 canchas',
+      infoFiltered: '(filtrado de _MAX_ canchas en total)',
+      lengthMenu: 'Mostrar _MENU_ canchas',
+      loadingRecords: 'Cargando...',
+      processing: 'Procesando...',
+      search: 'Buscar:',
+      zeroRecords: 'No se encontraron canchas',
+      paginate: {
+        first: 'Primera',
+        last: 'Última',
+        next: 'Siguiente',
+        previous: 'Anterior'
+      },
+      aria: {
+        orderable: 'Ordenar por esta columna',
+        orderableReverse: 'Invertir el orden de esta columna'
+      }
+    },
     pageLength: 25,
     lengthChange: false,
     searching: false,

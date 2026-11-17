@@ -13,7 +13,9 @@ $stmt = $pdo->prepare("
         c.descripcion AS descripcion_cancha,
         c.id_local
     FROM video v
-    LEFT JOIN cancha c ON v.codigo_cancha = c.codigo_cancha
+    LEFT JOIN cancha c
+      ON v.codigo_cancha = c.codigo_cancha
+     AND v.id_local = c.id_local
     WHERE v.codigo_video = :codigo_video
 ");
 $stmt->execute(['codigo_video' => $codigo_video]);
@@ -31,11 +33,18 @@ if ($video) {
 
 if (!$video) { header("Location: " . $baseUrl . "/admin/videos/index.php"); exit(); }
 
-$canchasStmt = $pdo->query("CALL GetAllCanchas()");
+$canchasStmt = $pdo->prepare(
+    'SELECT id_cancha, id_local, codigo_cancha, descripcion
+     FROM cancha
+     WHERE id_local = :id_local AND estado = 1
+     ORDER BY descripcion'
+);
+$canchasStmt->execute([':id_local' => (int) $video['id_local']]);
 $canchas = $canchasStmt->fetchAll(PDO::FETCH_ASSOC);
 $canchasStmt->closeCursor();
 
 $_SESSION['storage_proxy_csrf'] ??= bin2hex(random_bytes(32));
+$_SESSION['video_password_csrf'] ??= bin2hex(random_bytes(32));
 $STORAGE_PROXY_URL = $baseUrl . '/admin/videos/procesos/storage_proxy.php';
 ?>
 
@@ -49,7 +58,9 @@ $STORAGE_PROXY_URL = $baseUrl . '/admin/videos/procesos/storage_proxy.php';
 
   <div class="adm-form-card">
     <form id="form_edit_video" action="procesos/procesar_edit.php" method="POST" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Csrf::token(), ENT_QUOTES) ?>">
       <input type="hidden" name="codigo_video" value="<?= htmlspecialchars($video['codigo_video']) ?>" />
+      <input type="hidden" name="video_password_csrf" value="<?= htmlspecialchars($_SESSION['video_password_csrf'], ENT_QUOTES) ?>">
 
       <!-- video_url se llenará por JS tras una nueva subida, o conserva el valor actual -->
       <input type="hidden" id="video_url_hidden" name="video_url" value="<?= htmlspecialchars($video['video_url']) ?>" />
@@ -132,6 +143,34 @@ $STORAGE_PROXY_URL = $baseUrl . '/admin/videos/procesos/storage_proxy.php';
       <div class="adm-field">
         <label class="adm-label" for="descripcion">Descripción</label>
         <textarea id="descripcion" name="descripcion" class="adm-textarea" required><?= htmlspecialchars($video['descripcion']) ?></textarea>
+      </div>
+
+      <div class="adm-field video-password-field">
+        <div class="video-password-row">
+          <label class="adm-label video-password-toggle" for="video_password_enabled">
+            <input id="video_password_enabled" class="video-password-switch" name="video_password_enabled" type="checkbox" value="1"
+                   <?= !empty($video['password_hash']) ? 'checked' : '' ?>>
+            <span class="video-password-label">Proteger con contraseña</span>
+          </label>
+          <div class="video-password-control" id="video_password_control"
+               <?= empty($video['password_hash']) ? 'hidden' : '' ?>>
+            <input id="video_password" name="video_password" type="password" class="adm-input"
+                   minlength="8" maxlength="72"
+                   pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,72}"
+                   title="Usa al menos 8 caracteres e incluye una mayúscula, una minúscula, un número y un símbolo."
+                   autocomplete="new-password"
+                   placeholder="Ingrese la contraseña"
+                   <?= empty($video['password_hash']) ? 'disabled' : '' ?>>
+            <button type="button" class="video-password-eye" aria-label="Mostrar contraseña" aria-pressed="false">
+              <i class="fas fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <small style="display:block;margin-top:4px;color:rgba(168,168,200,.6);font-size:12px;">
+          <?= !empty($video['password_hash'])
+              ? 'Escribe una nueva contraseña para cambiarla; debe tener mayúscula, minúscula, número y símbolo. Desactiva la opción para quitarla.'
+              : 'Activa la opción para asignar una contraseña de mínimo 8 caracteres con mayúscula, minúscula, número y símbolo.' ?>
+        </small>
       </div>
 
       <!-- URL actual del video (informativo) -->
@@ -220,10 +259,43 @@ $STORAGE_PROXY_URL = $baseUrl . '/admin/videos/procesos/storage_proxy.php';
 </div>
 
 <script>
+(() => {
+  const enabled = document.getElementById('video_password_enabled');
+  const control = document.getElementById('video_password_control');
+  const password = document.getElementById('video_password');
+  const eye = document.querySelector('.video-password-eye');
+  if (!enabled || !control || !password || !eye) return;
+
+  enabled.addEventListener('change', () => {
+    control.hidden = !enabled.checked;
+    password.disabled = !enabled.checked;
+    password.required = enabled.checked && !<?= !empty($video['password_hash']) ? 'true' : 'false' ?>;
+    if (!enabled.checked) {
+      password.value = '';
+      password.type = 'password';
+      eye.setAttribute('aria-pressed', 'false');
+      eye.setAttribute('aria-label', 'Mostrar contraseña');
+      eye.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i>';
+    }
+  });
+  eye.addEventListener('click', () => {
+    const show = password.type === 'password';
+    password.type = show ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(show));
+    eye.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    eye.innerHTML = `<i class="fas fa-eye${show ? '-slash' : ''}" aria-hidden="true"></i>`;
+  });
+
+  password.required = enabled.checked && !<?= !empty($video['password_hash']) ? 'true' : 'false' ?>;
+})();
+</script>
+
+<script>
 // ── Configuración del VPS ────────────────────────────────────────────────────
 const STORAGE_PROXY_URL = <?= json_encode($STORAGE_PROXY_URL, JSON_UNESCAPED_SLASHES) ?>;
 const STORAGE_CSRF_TOKEN = <?= json_encode($_SESSION['storage_proxy_csrf']) ?>;
-const CHUNK_SIZE      = 1 * 1024 * 1024; // 1 MB por chunk
+const ADMIN_CSRF_TOKEN = <?= json_encode(\App\Core\Csrf::token()) ?>;
+const CHUNK_SIZE      = 10 * 1024 * 1024; // 10 MB por chunk
 
 // ── Referencias DOM ──────────────────────────────────────────────────────────
 const canchaSelect       = document.getElementById('codigo_cancha');
@@ -243,6 +315,7 @@ const urlGeneradaText    = document.getElementById('url_generada_text');
 const videoUrlHidden     = document.getElementById('video_url_hidden');
 const urlActualDisplay   = document.getElementById('url_actual_display');
 const btnUploadVps       = document.getElementById('btn_upload_vps');
+let activeUploadMetrics = null;
 const btnActualizar      = document.getElementById('btn_actualizar');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -356,8 +429,9 @@ async function iniciarSubida() {
   }
 
 // ── Subida por chunks al VPS con reintentos ─────────────────────────────────
-async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRetries = 3) {
+async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRetries = 3, metrics = null) {
   for (let intento = 1; intento <= maxRetries; intento++) {
+    const requestStarted = performance.now();
     try {
       const response = await fetch(STORAGE_PROXY_URL, { method: 'POST', body: formData, headers: { 'X-CSRF-Token': STORAGE_CSRF_TOKEN } });
       const rawText = await response.text();
@@ -367,16 +441,29 @@ async function uploadChunkConReintentos(formData, chunkIndex, totalChunks, maxRe
       } catch (jsonErr) {
         throw new Error('Respuesta inválida (HTTP ' + response.status + '): ' + rawText.substring(0, 150));
       }
+      if (metrics && resp._proxy_timing) {
+        metrics.upstreamCount++;
+        metrics.upstreamMsTotal += Number(resp._proxy_timing.upstream_total_ms) || 0;
+        metrics.upstreamMsMax = Math.max(metrics.upstreamMsMax, Number(resp._proxy_timing.upstream_total_ms) || 0);
+      }
       if (!resp.ok) {
         throw new Error(resp.error || 'Error desconocido del servidor');
       }
       return resp;
     } catch (err) {
       if (intento < maxRetries) {
+        if (metrics) metrics.retries++;
         uploadStatusText.textContent = 'Reintentando chunk ' + (chunkIndex + 1) + '/' + totalChunks + ' (intento ' + (intento + 1) + ')...';
         await new Promise(res => setTimeout(res, intento * 1000));
       } else {
         throw err;
+      }
+    } finally {
+      if (metrics) {
+        const requestMs = performance.now() - requestStarted;
+        metrics.requestCount++;
+        metrics.requestMsTotal += requestMs;
+        metrics.requestMsMax = Math.max(metrics.requestMsMax, requestMs);
       }
     }
   }
@@ -444,6 +531,8 @@ async function iniciarSubida() {
 
   let startTime = Date.now();
   let bytesSent = 0;
+  const metrics = { startedAt: startTime, requestCount: 0, requestMsTotal: 0, requestMsMax: 0, upstreamCount: 0, upstreamMsTotal: 0, upstreamMsMax: 0, retries: 0, completedChunks: 0, bytesSent: 0, totalChunks };
+  activeUploadMetrics = metrics;
 
   // --- Enviar chunks uno a uno con reintentos ---
   for (let i = 0; i < totalChunks; i++) {
@@ -460,13 +549,15 @@ async function iniciarSubida() {
     formData.append('chunk',        chunk, 'chunk_' + i);
 
     try {
-      await uploadChunkConReintentos(formData, i, totalChunks, 3);
+      await uploadChunkConReintentos(formData, i, totalChunks, 3, metrics);
     } catch (err) {
       return onUploadError('Error en chunk ' + (i + 1) + '/' + totalChunks + ': ' + err.message, uploadId);
     }
 
     // Actualizar progreso
     bytesSent += (end - start);
+    metrics.bytesSent = bytesSent;
+    metrics.completedChunks = i + 1;
     const pct       = Math.round((bytesSent / file.size) * 100);
     const elapsed   = (Date.now() - startTime) / 1000;
     const speed     = bytesSent / (elapsed > 0 ? elapsed : 1);
@@ -478,6 +569,8 @@ async function iniciarSubida() {
     uploadSpeedText.textContent   = formatBytes(speed) + '/s · ' +
       'enviado: ' + formatBytes(bytesSent) + ' de ' + formatBytes(file.size) +
       (remaining > 0 ? ' · ~' + Math.ceil(remaining) + 's restantes' : '');
+
+    if ((i + 1) % 100 === 0) registrarLogSubida('Progreso de subida', uploadId, metrics);
   }
 
   // --- Finalizar: ensamblar en el VPS ---
@@ -504,6 +597,8 @@ async function iniciarSubida() {
   }
 
   // --- Subida exitosa ---
+  registrarLogSubida('Subida completada', uploadId, metrics);
+  activeUploadMetrics = null;
   const videoUrl = finalResp.video_url;
   videoUrlHidden.value = videoUrl;
   urlActualDisplay.value = videoUrl;
@@ -528,11 +623,11 @@ function onUploadError(msg, currentUploadId = '') {
   btnUploadVps.innerHTML = '<i class="fas fa-redo"></i> Reintentar subida';
 
   console.error('Error de subida (detalle técnico):', msg);
-  registrarLogSubida(msg, currentUploadId);
+  registrarLogSubida(msg, currentUploadId, activeUploadMetrics);
   alert('No se pudo completar la subida del video. Verifica tu conexión e inténtalo de nuevo.');
 }
 
-function registrarLogSubida(errorTecnico, currentUploadId = '') {
+function registrarLogSubida(errorTecnico, currentUploadId = '', metrics = null) {
   try {
     const file = fileInput.files[0];
     const payload = {
@@ -542,12 +637,26 @@ function registrarLogSubida(errorTecnico, currentUploadId = '') {
       codigo_cancha: canchaSelect ? canchaSelect.value : '',
       id_local: (canchaSelect.options[canchaSelect.selectedIndex] ? canchaSelect.options[canchaSelect.selectedIndex].getAttribute('data-id-local') : '') || '',
       upload_id: currentUploadId || '',
-      context: 'admin/videos/edit.php'
+      context: 'admin/videos/edit.php',
+      upload_metrics: metrics ? {
+        phase: errorTecnico,
+        completed_chunks: metrics.completedChunks,
+        total_chunks: metrics.totalChunks,
+        bytes_sent: metrics.bytesSent,
+        elapsed_seconds: Math.round((Date.now() - metrics.startedAt) / 1000),
+        average_speed_kbps: Math.round(metrics.bytesSent / Math.max(1, (Date.now() - metrics.startedAt) / 1000) / 1024),
+        request_count: metrics.requestCount,
+        average_request_ms: Math.round(metrics.requestMsTotal / Math.max(1, metrics.requestCount)),
+        max_request_ms: Math.round(metrics.requestMsMax),
+        average_proxy_to_vps_ms: Math.round(metrics.upstreamMsTotal / Math.max(1, metrics.upstreamCount)),
+        max_proxy_to_vps_ms: Math.round(metrics.upstreamMsMax),
+        retries: metrics.retries
+      } : null
     };
 
     fetch('procesos/log_upload_error.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': ADMIN_CSRF_TOKEN },
       body: JSON.stringify(payload)
     }).catch(function (e) {
       console.warn('No se pudo enviar al log:', e);

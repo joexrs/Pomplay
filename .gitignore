@@ -11,6 +11,8 @@ composer.lock
 *.swp
 *.swo
 *~
+/.local_backups/
+/database/u462193081_pomplay.sql
 
 # OS
 .DS_Store

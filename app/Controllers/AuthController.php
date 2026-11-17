@@ -63,6 +63,8 @@ final class AuthController
                 } elseif (!password_verify($password, $user['password'])) {
                     $error = 'Contraseña incorrecta.';
                 } else {
+                    $_SESSION['id_propietario'] = $user['id_propietario'] ?? null;
+
                     // Registrar sesión con todos los datos disponibles
                     Auth::login(
                         userId:        (int) $user['id_usuario'],
@@ -74,7 +76,6 @@ final class AuthController
                         foto:          null
                     );
 
-                    $_SESSION['id_propietario'] = $user['id_propietario'] ?? null;
                     if (!empty($user['nombres']) || !empty($user['apellidos'])) {
                         $_SESSION['nombre_completo'] = trim(($user['nombres'] ?? '') . ' ' . ($user['apellidos'] ?? ''));
                     }

@@ -95,12 +95,81 @@ $codigo   = trim($_GET['codigo']   ?? '');
 $stream   = trim($_GET['stream']   ?? '');
 $cam      = max(1, (int)($_GET['cam']      ?? 1));
 $id_local = trim($_GET['id_local'] ?? 'local');
-if (!in_array($action, ['status', 'start_rec', 'stop_rec', 'list_rec', 'check_processing', 'delete_rec'], true))
+if (!in_array($action, ['status', 'start_rec', 'stop_rec', 'list_rec', 'check_processing', 'delete_rec', 'delete_court'], true))
     jsonResp(['ok' => false, 'error' => 'Accion no valida: ' . $action]);
-if (empty($codigo))
+if (empty($codigo) && $action !== 'delete_court')
     jsonResp(['ok' => false, 'error' => 'Parametro codigo requerido']);
 // ── Acciones ─────────────────────────────────────────────────────
 switch ($action) {
+    case 'delete_court':
+        $idLocal = trim($_GET['id_local'] ?? '');
+        if (!ctype_digit($idLocal) || (int) $idLocal < 1 || !preg_match('/^[A-Za-z0-9]+$/', $codigo)) {
+            jsonResp(['ok' => false, 'error' => 'Local o código de cancha no válido']);
+        }
+
+        $recordingsRoot = realpath(REC_DIR);
+        $localPath = $recordingsRoot === false
+            ? false
+            : realpath($recordingsRoot . '/' . (int) $idLocal);
+        $courtPath = $localPath === false
+            ? false
+            : realpath($localPath . '/' . $codigo);
+
+        if ($recordingsRoot === false || $localPath === false || $courtPath === false) {
+            jsonResp(['ok' => true, 'deleted' => false, 'message' => 'La carpeta de la cancha ya no existía']);
+        }
+
+        $rootPrefix = rtrim($recordingsRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $localPrefix = rtrim($localPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (dirname($localPath) !== $recordingsRoot
+            || dirname($courtPath) !== $localPath
+            || !str_starts_with($courtPath . DIRECTORY_SEPARATOR, $localPrefix)
+            || !str_starts_with($courtPath . DIRECTORY_SEPARATOR, $rootPrefix)) {
+            jsonResp(['ok' => false, 'error' => 'La ruta de la cancha no está dentro del almacenamiento permitido']);
+        }
+
+        for ($camera = 1; $camera <= 4; $camera++) {
+            $recording = readPidFile($codigo, $camera);
+            if ($recording['pid'] > 0 && file_exists('/proc/' . $recording['pid'])
+                && dirname($recording['file']) === $courtPath) {
+                jsonResp(['ok' => false, 'error' => 'La cancha tiene una grabación activa; detenla antes de eliminarla']);
+            }
+        }
+
+        $removeDirectory = static function (string $directory) use (&$removeDirectory): bool {
+            $entries = scandir($directory);
+            if ($entries === false) {
+                return false;
+            }
+
+            foreach ($entries as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+
+                $path = $directory . DIRECTORY_SEPARATOR . $entry;
+                if (is_link($path) || is_file($path)) {
+                    if (!unlink($path)) {
+                        return false;
+                    }
+                } elseif (is_dir($path)) {
+                    if (!$removeDirectory($path)) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            return rmdir($directory);
+        };
+
+        if (!$removeDirectory($courtPath)) {
+            jsonResp(['ok' => false, 'error' => 'No se pudo eliminar por completo la carpeta de la cancha']);
+        }
+
+        jsonResp(['ok' => true, 'deleted' => true, 'message' => 'Carpeta de cancha y grabaciones eliminadas']);
+
     // ══ STATUS ═══════════════════════════════════════════════════
     case 'status':
         if (empty($stream)) jsonResp(['ok' => false, 'error' => 'Parametro stream requerido']);

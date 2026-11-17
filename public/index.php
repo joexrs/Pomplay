@@ -98,14 +98,14 @@ if ($requestPath === '/api/horas' && $method === 'GET') {
     return;
 }
 
-// API de PINs de video
-if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/generar-pin$#', $requestPath, $matches) && $method === 'POST') {
-    $controllers['apiVideoPin']->generate($matches[1]);
+// API de contraseñas de video
+if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/verificar-contrasena$#', $requestPath, $matches) && $method === 'POST') {
+    $controllers['apiVideoPassword']->verify($matches[1]);
     return;
 }
 
-if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/verificar-pin$#', $requestPath, $matches) && $method === 'POST') {
-    $controllers['apiVideoPin']->verify($matches[1]);
+if (preg_match('#^/api/videos/([A-Za-z0-9_-]+)/contrasena$#', $requestPath, $matches) && $method === 'POST') {
+    $controllers['apiVideoPassword']->update($matches[1]);
     return;
 }
 

@@ -31,19 +31,16 @@ $propietario = $stmtOwner->fetch(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        // Actualizar local (incluyendo es_privado)
-        $esPrivado = isset($_POST['es_privado']) ? 1 : 0;
+        // Actualizar datos del local
         $stmt = $pdo->prepare("
             UPDATE locales
             SET nombre_local = :nombre_local,
-                id_propietario = :id_propietario,
-                es_privado = :es_privado
+                id_propietario = :id_propietario
             WHERE id_local = :id
         ");
         $stmt->execute([
             ':nombre_local' => $_POST['nombre_local'],
             ':id_propietario' => !empty($_POST['id_propietario']) ? $_POST['id_propietario'] : null,
-            ':es_privado' => $esPrivado,
             ':id' => $localId,
         ]);
 
@@ -180,23 +177,6 @@ include '../config.php';
           </select>
         </div>
 
-        <div class="adm-field" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.06);">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
-            <div>
-              <label class="adm-label" style="margin-bottom:4px; display:block;">
-                <i class="fas fa-lock" style="color:var(--color-brand); margin-right:6px;"></i>Videos Privados
-              </label>
-              <small style="color:var(--color-text-muted); font-size:0.8rem;">
-                Los videos de este local requerirán un código PIN para ser vistos
-              </small>
-            </div>
-            <label class="switch-toggle" for="es_privado" style="flex-shrink:0;">
-              <input type="checkbox" id="es_privado" name="es_privado" value="1"
-                     <?= !empty($local['es_privado']) ? 'checked' : '' ?>>
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-        </div>
       </div>
 
       <?php if ($propietario): ?>
@@ -275,7 +255,6 @@ document.getElementById('tipo_membresia').addEventListener('change', function() 
 </script>
 
 <style>
-/* Toggle Switch para es_privado */
 .switch-toggle {
   position: relative;
   display: inline-block;

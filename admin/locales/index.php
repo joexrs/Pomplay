@@ -241,6 +241,7 @@ $stmtLocales->closeCursor();
 
     const formData = new FormData();
     formData.append('id_local', currentId);
+    formData.append('csrf_token', <?= json_encode(\App\Core\Csrf::token()) ?>);
 
     fetch('procesos/eliminar_local.php', {
       method: 'POST',

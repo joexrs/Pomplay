@@ -64,7 +64,7 @@ body {
   padding: 0 !important;
 }
 
-body>*:not(.detail-content):not(script):not(style):not(link):not(#mobileShareModal):not(#clipsModal):not(#clipProcessingModal):not(.clip-proc-modal):not(.toast-notification),
+body>*:not(.detail-content):not(script):not(style):not(link):not(#pinOverlay):not(#mobileShareModal):not(#clipsModal):not(#clipProcessingModal):not(.clip-proc-modal):not(.toast-notification),
 .wrapper,
 .container,
 .page-wrapper,
